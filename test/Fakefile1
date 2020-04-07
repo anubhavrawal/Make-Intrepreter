@@ -1,0 +1,6 @@
+# default target
+all: hworld word_count cats
+
+# source code compilation
+hworld: hworld.o
+	cc -o hworld hworld.o
