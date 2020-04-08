@@ -4,3 +4,12 @@ all: hworld word_count cats
 # source code compilation
 hworld: hworld.o
 	cc -o hworld hworld.o
+
+hworld.o: hworld.c hworld.h
+	cc -c hworld.c
+
+# word count test
+word_count: report.txt
+	echo "character count of 'report'"
+	wc -c < report.txt
+	
