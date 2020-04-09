@@ -4,5 +4,8 @@ fake: ../fake.c
 run: clean fake
 	../fake
 
+val: fake
+	valgrind ../fake
+
 clean:
 	rm -f ../fake

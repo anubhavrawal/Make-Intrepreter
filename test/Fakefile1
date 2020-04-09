@@ -12,4 +12,15 @@ hworld.o: hworld.c hworld.h
 word_count: report.txt
 	echo "character count of 'report'"
 	wc -c < report.txt
-	
+
+report.txt:
+	ls -la | grep hworld > report.txt
+
+# cats test (piping)
+cats:
+	echo "Hello, cats!" | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat | cat
+
+# clean target
+clean:
+	rm report.txt hworld.o hworld
+

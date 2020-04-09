@@ -4,7 +4,7 @@
 recipe_t ** rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	char *rule_target;
 	pointers_to_recipes = realloc(pointers_to_recipes, (line + 1) *sizeof(recipe_t*));
-	pointers_to_recipes[line] = malloc(sizeof(recipe_t));
+	pointers_to_recipes[line] = calloc(1, sizeof(recipe_t));
 	pointers_to_recipes[line]->deps  = malloc(sizeof(char *));
 	//pointers_to_recipes[line]->deps[0] = malloc(sizeof(char *));
 	
@@ -23,12 +23,14 @@ recipe_t ** rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 			if (deps == NULL){
 				break;
 			}
-			pointers_to_recipes[line]->deps = realloc(pointers_to_recipes[line]->deps, (count+2) *sizeof(char *));
+			pointers_to_recipes[line]->deps = realloc(pointers_to_recipes[line]->deps, (count+1) *sizeof(char *));
 			pointers_to_recipes[line]->deps[count] = strdup(deps);
+			
 			printf("The deps are: %s \n",pointers_to_recipes[line]->deps[count]);
+			count ++;
 		}
+		pointers_to_recipes[line]->dep_count = count;
 
-		pointers_to_recipes[line]->deps[count+1] = NULL;	
 	}
 	return pointers_to_recipes;
 
@@ -39,16 +41,16 @@ void cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 	tmp = strsep(&buf, "\t");
 
 	pointers_to_recipes[line]->commands = realloc(pointers_to_recipes[line]->commands, (count+2) *sizeof(char *));
-	pointers_to_recipes[line]->commands[count] = strdup(buf);
+	pointers_to_recipes[line]->commands[count] = buf;
 
 	pointers_to_recipes[line]->commands[count+1] = NULL;
-	printf("The commands %d are: %s \n",line, pointers_to_recipes[line]->commands[count]);
+	printf("The commands %d are: %s \n", line , pointers_to_recipes[line]->commands[count]);
 
 }
 
 int main(){
     FILE *fake_reader = fopen("Fakefile1","r");
-    char *reader = calloc(1024,1);//Allocating memeory for file line reader
+    char *reader = calloc(1,1024);//Allocating memeory for file line reader
     char *buf; // pointer to move within the line
     int line = 0;
 	int cmd_track;
@@ -56,7 +58,7 @@ int main(){
     
     //Pointers of Pointer for storing all the cards
     recipe_t **pointers_to_recipes = malloc(sizeof(recipe_t*));
-    //pointers_to_recipes[0] = malloc(sizeof(recipe_t));
+    
 
     if (fake_reader == NULL) 
     { 
@@ -76,11 +78,15 @@ int main(){
             continue;
         }
 
-		if (*reader == '\n'){
+		if ( (*reader == '\n') && (state == COMMANDS)){
             state = RULE_START;
 			line++;
 			continue;
         }
+
+		if ((*reader == '\n') || (reader == NULL)){
+			continue;
+		}
 
         buf = reader;
         
@@ -88,7 +94,7 @@ int main(){
             pointers_to_recipes = rule(pointers_to_recipes, buf, line);
             state = COMMANDS;
 			cmd_track = 0;
-			pointers_to_recipes[line]->commands = calloc(sizeof(char *), 1);
+			pointers_to_recipes[line]->commands = calloc(1,sizeof(char *));
 			continue;
         }
 
@@ -96,6 +102,7 @@ int main(){
 		if (state == COMMANDS){
 			if (*reader == '\t'){
 				cmds(pointers_to_recipes, buf, line, cmd_track);
+				pointers_to_recipes[line]->cmd_count = cmd_track;
 				cmd_track++;
 				continue;
 			}
@@ -110,34 +117,26 @@ int main(){
 
     }
 
+	//Freeing all the used memory
 	free(reader);
 	int i;
-	for (i=0; i<=line; i++){
+	for (i=0; i<line; i++){
 		free(pointers_to_recipes[i]->target);
-		int count = 0;
-		int tmp = sizeof(&*pointers_to_recipes[i]->deps)/ sizeof(*pointers_to_recipes[i]->deps[0]);
 
-		while (pointers_to_recipes[i]->deps[count] != NULL){
+		int count;
+		for(count=0; count < pointers_to_recipes[i]->dep_count; count++){
 			free(pointers_to_recipes[i]->deps[count]);
-			count++;
 		}
-		free(pointers_to_recipes[i]->deps[count]);
 		free(pointers_to_recipes[i]->deps);
 		
-		count = 0;
-		while (pointers_to_recipes[i]->commands[count] != NULL){
+		for(count=0; i < pointers_to_recipes[i]->cmd_count; count++){
 			free(pointers_to_recipes[i]->commands[count]);
 			count++;
 		}
-		free(pointers_to_recipes[i]->commands[count]);
 		free(pointers_to_recipes[i]->commands);
 
 		free(pointers_to_recipes[i]);
 	}
-	printf("Hello!!");
-	//free(pointers_to_recipes[i]->deps);
-	//free(pointers_to_recipes[i]->commands);
-	free(pointers_to_recipes[i]);
 	free(pointers_to_recipes);
 	
     fclose(fake_reader); 
