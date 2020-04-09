@@ -4,8 +4,11 @@ fake: ../fake.c
 run: clean fake
 	../fake
 
-val: fake
+val: clean fake
 	valgrind ../fake
+
+valmem: clean fake
+	valgrind --leak-check=full ../fake
 
 clean:
 	rm -f ../fake

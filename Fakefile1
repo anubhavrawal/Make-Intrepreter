@@ -1,18 +1,15 @@
-# default target
-all: hworld word_count cats
-
-# source code compilation
-hworld: hworld.o
-	cc -o hworld hworld.o
+# word count test
+word_count: report.txt
+	1echo "character count of 'report'"
+	2wc -c < report.txt
+	3wc -c < report.txt
 
 hworld.o: hworld.c hworld.h
-	cc -c hworld.c
+	cc -c hworld.c0
+	cc -c hworld.c1
+	cc -c hworld.c2
 
 # word count test
 word_count: report.txt
 	echo "character count of 'report'"
 	wc -c < report.txt
-
-
-
-
