@@ -84,6 +84,24 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 
 }
 
+int excutecmd(char *command){
+	char *array[10];
+	int i=0;
+	array[i] = strtok(command," ");
+
+	while(array[i]!=NULL){
+		array[++i] = strtok(NULL," ");
+	}
+	array[i] = NULL;
+
+	for (int k = 0; k < i; ++k) 
+        printf("%d, %s\n",k, array[k]);
+	
+	execv("/usr/bin/CS3240/a3-rawalanubhav/test",array);
+	
+	return 0;
+}
+
 int main(){
     FILE *fake_reader = fopen("Fakefile1","r");
     char *reader = calloc(1,1024);//Allocating memeory for file line reader
@@ -192,8 +210,38 @@ int main(){
 
 	//Display only if eveything went well
 	if (condition){
-		display(pointers_to_recipes, line);
+		//display(pointers_to_recipes, line);
 	}
+
+
+	if (pointers_to_recipes[2]->dep_count){
+		for(int index= 0; index< pointers_to_recipes[2]->dep_count; index++){
+			
+			//If the dependency is on a .c or .h files instread of targets within the fakefile
+			int dep_len = strlen(pointers_to_recipes[2]->deps[index]);
+			char *last_two = &pointers_to_recipes[2]->deps[index][dep_len-2];
+			if ( strcmp(last_two, ".c") || strcmp(last_two, ".h") ){
+				
+				if( access( pointers_to_recipes[2]->deps[index] , F_OK ) != -1 ) {
+					int valdity_check = 0;
+
+					for(int cmd_count; cmd_count< pointers_to_recipes[2]->cmd_count; cmd_count++){
+						valdity_check = excutecmd(pointers_to_recipes[2]->commands[cmd_count]);
+					}
+
+				} 
+				
+				else {
+					printf("Error dependency file %s cannot be found!!",pointers_to_recipes[2]->deps[index]);
+					return 0;
+				}
+			}
+
+			//If the dependancy is on a target file within the fakefile
+		}
+	}
+	
+
 
 	//Freeing all the used memory
 	free(reader);
