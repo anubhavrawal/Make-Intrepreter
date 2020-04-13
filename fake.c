@@ -85,20 +85,73 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 }
 
 int excutecmd(char *command){
-	char *array[10];
+	char *args[10];
 	int i=0;
-	array[i] = strtok(command," ");
+	args[i] = strtok(command," ");
 
-	while(array[i]!=NULL){
-		array[++i] = strtok(NULL," ");
+	while(args[i]!=NULL){
+		args[++i] = strtok(NULL," ");
 	}
-	array[i] = NULL;
+	args[i] = NULL;
 
 	for (int k = 0; k < i; ++k) 
-        printf("%d, %s\n",k, array[k]);
+        printf("%d, %s\n",k, args[k]);
 	
-	execv("/usr/bin/CS3240/a3-rawalanubhav/test",array);
+	execvp(args[0],args); 
 	
+}
+
+int processing(recipe_t ** pointers_to_recipes, int line, int track){
+	int valdity_check = 0;
+	int curr_line;
+	if (pointers_to_recipes[track]->dep_count){
+		for(int index= 0; index< pointers_to_recipes[track]->dep_count; index++){
+			int found = 0;
+			
+			for (curr_line = 1; curr_line<line; curr_line++){
+
+				if (strcmp(pointers_to_recipes[track]->deps[index], pointers_to_recipes[curr_line]->target) ==0){
+					found = 1;
+					break;
+				}
+			}
+			
+			//Prep for If the dependency is on a .c or .h files instread of targets within the fakefile
+			int dep_len = strlen(pointers_to_recipes[track]->deps[index]);
+			char *last_two = &pointers_to_recipes[track]->deps[index][dep_len-2];
+			//---------------------------------------------------------------------------
+
+			if(found ==1) {
+				if (processing(pointers_to_recipes, line, curr_line) == -1){
+					return -1;
+				}
+			}
+
+			if ( strcmp(last_two, ".c") == 0 || strcmp(last_two, ".h") == 0 || strcmp(last_two, ".o") == 0){
+				
+				if( access( pointers_to_recipes[track]->deps[index] , F_OK ) != -1 ) {
+					valdity_check = 0;
+
+					for(int cmd_count=0; cmd_count< pointers_to_recipes[track]->cmd_count; cmd_count++){
+						valdity_check = excutecmd(pointers_to_recipes[track]->commands[cmd_count]);
+						
+					}
+				} 
+				
+				else {
+					printf("Error dependency file %s cannot be found!! \n",pointers_to_recipes[track]->deps[index]);
+					return -1;
+				}
+			}
+
+			//If the dependancy is on a target file within the fakefile
+			else{
+				return -1;
+			}
+			//Else End
+		}
+	}
+	//Function end
 	return 0;
 }
 
@@ -213,35 +266,10 @@ int main(){
 		//display(pointers_to_recipes, line);
 	}
 
-
-	if (pointers_to_recipes[2]->dep_count){
-		for(int index= 0; index< pointers_to_recipes[2]->dep_count; index++){
-			
-			//If the dependency is on a .c or .h files instread of targets within the fakefile
-			int dep_len = strlen(pointers_to_recipes[2]->deps[index]);
-			char *last_two = &pointers_to_recipes[2]->deps[index][dep_len-2];
-			if ( strcmp(last_two, ".c") || strcmp(last_two, ".h") ){
-				
-				if( access( pointers_to_recipes[2]->deps[index] , F_OK ) != -1 ) {
-					int valdity_check = 0;
-
-					for(int cmd_count; cmd_count< pointers_to_recipes[2]->cmd_count; cmd_count++){
-						valdity_check = excutecmd(pointers_to_recipes[2]->commands[cmd_count]);
-					}
-
-				} 
-				
-				else {
-					printf("Error dependency file %s cannot be found!!",pointers_to_recipes[2]->deps[index]);
-					return 0;
-				}
-			}
-
-			//If the dependancy is on a target file within the fakefile
-		}
+	if (processing(pointers_to_recipes, line, 1) == -1){
+		printf("Fakefie fatal execution!!! \n");
+		printf("Execution halt!! \n");
 	}
-	
-
 
 	//Freeing all the used memory
 	free(reader);
