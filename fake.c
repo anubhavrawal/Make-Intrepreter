@@ -87,18 +87,29 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 int excutecmd(char *command){
 	char *args[10];
 	int i=0;
-	args[i] = strtok(command," ");
+	
+	pid_t pid1 = fork();
 
-	while(args[i]!=NULL){
-		args[++i] = strtok(NULL," ");
+	if (0 == pid1) {
+		args[i] = strtok(command," ");
+
+		while(args[i]!=NULL){
+			args[++i] = strtok(NULL," ");
+		}
+		args[i] = NULL;
+
+		for (int k = 0; k < i; ++k) 
+			printf("%d, %s\n",k, args[k]);
+		
+		printf("\n");
+		
+		execvp(args[0],args); 
 	}
-	args[i] = NULL;
-
-	for (int k = 0; k < i; ++k) 
-        printf("%d, %s\n",k, args[k]);
-	
-	execvp(args[0],args); 
-	
+	else {
+		waitpid(pid1, NULL, 0);
+		return 0;
+	}
+	return 0;
 }
 
 int processing(recipe_t ** pointers_to_recipes, int line, int track){
@@ -109,47 +120,33 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 			int found = 0;
 			
 			for (curr_line = 1; curr_line<line; curr_line++){
-
+				//If the dependancy is on a target file within the fakefile
 				if (strcmp(pointers_to_recipes[track]->deps[index], pointers_to_recipes[curr_line]->target) ==0){
-					found = 1;
+					if (processing(pointers_to_recipes, line, curr_line) == -1){
+						return -1;
+					}
 					break;
 				}
 			}
 			
-			//Prep for If the dependency is on a .c or .h files instread of targets within the fakefile
+			//If the dependency is on a .c or .h files instread of targets within the fakefile
 			int dep_len = strlen(pointers_to_recipes[track]->deps[index]);
 			char *last_two = &pointers_to_recipes[track]->deps[index][dep_len-2];
-			//---------------------------------------------------------------------------
-
-			if(found ==1) {
-				if (processing(pointers_to_recipes, line, curr_line) == -1){
-					return -1;
-				}
-			}
-
 			if ( strcmp(last_two, ".c") == 0 || strcmp(last_two, ".h") == 0 || strcmp(last_two, ".o") == 0){
 				
-				if( access( pointers_to_recipes[track]->deps[index] , F_OK ) != -1 ) {
-					valdity_check = 0;
-
-					for(int cmd_count=0; cmd_count< pointers_to_recipes[track]->cmd_count; cmd_count++){
-						valdity_check = excutecmd(pointers_to_recipes[track]->commands[cmd_count]);
-						
-					}
-				} 
-				
-				else {
+				if( access( pointers_to_recipes[track]->deps[index] , F_OK ) == -1 ) {
 					printf("Error dependency file %s cannot be found!! \n",pointers_to_recipes[track]->deps[index]);
 					return -1;
-				}
+				} 
+				
 			}
 
-			//If the dependancy is on a target file within the fakefile
-			else{
-				return -1;
-			}
-			//Else End
 		}
+
+		for(int cmd_count=0; cmd_count< pointers_to_recipes[track]->cmd_count; cmd_count++){
+			valdity_check = excutecmd(pointers_to_recipes[track]->commands[cmd_count]);
+		}
+
 	}
 	//Function end
 	return 0;
@@ -266,7 +263,7 @@ int main(){
 		//display(pointers_to_recipes, line);
 	}
 
-	if (processing(pointers_to_recipes, line, 1) == -1){
+	if (processing(pointers_to_recipes, line, 0) == -1){
 		printf("Fakefie fatal execution!!! \n");
 		printf("Execution halt!! \n");
 	}
