@@ -88,21 +88,25 @@ int excutecmd(char *command){
 	char *args[10];
 	int i=0;
 	
+	//Forking for 2 processes
 	pid_t pid1 = fork();
 
+	//Child process
 	if (0 == pid1) {
+		
+		//Split the command based on spaces
 		args[i] = strtok(command," ");
-
 		while(args[i]!=NULL){
 			args[++i] = strtok(NULL," ");
 		}
-		args[i] = NULL;
+		args[i] = NULL; // Add NULL as last argument for exec
 
+		//Print the command being executed
 		for (int k = 0; k < i; ++k) 
 			printf("%d, %s\n",k, args[k]);
-		
 		printf("\n");
 		
+		//Execute the command and handeling child process error
 		if ((execvp(args[0],args)  < 0)) {
 			perror("execlp error");
 			return -1;
@@ -110,7 +114,9 @@ int excutecmd(char *command){
 		}
 	}
 	
+	//Parent Process
 	else {
+		//wait for child to end
 		waitpid(pid1, NULL, 0);
 		return 0;
 	}
@@ -118,56 +124,72 @@ int excutecmd(char *command){
 	return 0;
 }
 
+//Returns the modified time for the "path" file
 static time_t getFileCreationTime(char *path) {
     struct stat attr;
     stat(path, &attr);
     return attr.st_mtime;
 }
 
+//Processing the command
 int processing(recipe_t ** pointers_to_recipes, int line, int track){
 	int valdity_check = 0;
 	int curr_line;
 	int dep_update_count = 0;
+
+	//Loop through all the dependencies
 	if (pointers_to_recipes[track]->dep_count){
 		for(int index= 0; index< pointers_to_recipes[track]->dep_count; index++){
-			int found = 0;
 			
+			//Check if the "track"-indexed depencency is depended on anyother avilable targets
+			//The check always skips the fist elment on the target list
 			for (curr_line = 1; curr_line<line; curr_line++){
 				//If the dependancy is on a target file within the fakefile
 				if (strcmp(pointers_to_recipes[track]->deps[index], pointers_to_recipes[curr_line]->target) ==0){
+					//Recurcevely execute that target first
+					//Check for the return if '-1' then return -1 for error
 					if (processing(pointers_to_recipes, line, curr_line) == -1){
 						return -1;
 					}
-					break;
+					break; //If found stop searching
 				}
 			}
-			
-			//If the dependency is on a .c or .h files instread of targets within the fakefile
-			int dep_len = strlen(pointers_to_recipes[track]->deps[index]);
-			char *last_two = &pointers_to_recipes[track]->deps[index][dep_len-2];
 
-			if( access( pointers_to_recipes[track]->deps[index] , F_OK ) != -1 ) { 
+			//Now look for if an actual file exist within the current directory
+			if( access( pointers_to_recipes[track]->deps[index] , F_OK ) != -1 ) {
+				//Yes, Great
+				//Now lets check if the current target is also a file that already exist within this directory
 				if( access( pointers_to_recipes[track]->target , F_OK ) != -1 ) {
+					//Lets get their modified date-time stamps
 					time_t target_time = getFileCreationTime( pointers_to_recipes[track]->target);
 					time_t dependancy_time = getFileCreationTime(pointers_to_recipes[track]->deps[index]);
+					
+					//If the time stamp on the dependancy is newer than target
 					if (target_time > dependancy_time){
-						dep_update_count++;
+						dep_update_count++; // Take a record of it
 					}
 					
 				}
 			}
 
+			//Still not found??? Too bad. Raise an error with -1
 			else{
 				printf("Error dependency file %s cannot be found!! \n",pointers_to_recipes[track]->deps[index]);
 				return -1;
 			}
 
 		}
+
+		//Remember that we took a record for if dependancy is newer than target
+		//If the condition is true for all the all the dependancies then,
+		//DO NOT EXCUTE THE COMMAND(S)
 		if(dep_update_count == pointers_to_recipes[track]->dep_count){
 			printf("All the dependancy are upto date for %s \n", pointers_to_recipes[track]->target);
 			return 0;
 		}
 
+		//If is FALSE for even 1  of dependencies THEN,
+		//EXCUTE THE COMMAND(S)
 		for(int cmd_count=0; cmd_count< pointers_to_recipes[track]->cmd_count; cmd_count++){
 			if (excutecmd(pointers_to_recipes[track]->commands[cmd_count]) == -1){
 				printf("Execution error \n");
