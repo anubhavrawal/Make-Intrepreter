@@ -1,6 +1,7 @@
 #include <errno.h>
 #include "fake.h"
 
+//Parses and stores the Rule targets and dependencies
 int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	char *rule_target;
 	
@@ -44,6 +45,7 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	return 1;
 }
 
+//Displayes all the information parsed from the fakefile
 void display(recipe_t ** pointers_to_recipes, int line){
 	int i;
 	int count;
@@ -61,6 +63,7 @@ void display(recipe_t ** pointers_to_recipes, int line){
 	}
 }
 
+//Parses and stores the commands
 int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 	char * tmp;
 
@@ -93,7 +96,7 @@ int excutecmd(char *command){
 
 	//Child process
 	if (0 == pid1) {
-		
+		printf("%s \n", command);
 		//Split the command based on spaces
 		args[i] = strtok(command," ");
 		while(args[i]!=NULL){
@@ -102,9 +105,9 @@ int excutecmd(char *command){
 		args[i] = NULL; // Add NULL as last argument for exec
 
 		//Print the command being executed
-		for (int k = 0; k < i; ++k) 
-			printf("%d, %s\n",k, args[k]);
-		printf("\n");
+		//for (int k = 0; k < i; ++k) 
+		//	printf("%d, %s\n",k, args[k]);
+		//printf("\n");
 		
 		//Execute the command and handeling child process error
 		if ((execvp(args[0],args)  < 0)) {
@@ -131,6 +134,29 @@ static time_t getFileCreationTime(char *path) {
     return attr.st_mtime;
 }
 
+//Delcation of function that will be used later on
+int processing(recipe_t ** pointers_to_recipes, int line, int track);
+
+//Search if the given string is avialble as a target and processses it
+int target_search(recipe_t ** pointers_to_recipes, int line, char *input){
+	int curr_line;
+	//Check if the "track"-indexed depencency is depended on anyother avilable targets
+	//The check always skips the fist elment on the target list
+	for (curr_line = 1; curr_line<line; curr_line++){
+		//If the dependancy is on a target file within the fakefile
+		if (strcmp(input, pointers_to_recipes[curr_line]->target) ==0){
+			//Recurcevely execute that target first
+			//Check for the return if '-1' then return -1 for error
+			if (processing(pointers_to_recipes, line, curr_line) == -1){
+				return -2;
+			}
+			return 1;
+			break; //If FOUND stop searching
+		}
+	}
+	return -1;
+}
+
 //Processing the command
 int processing(recipe_t ** pointers_to_recipes, int line, int track){
 	int valdity_check = 0;
@@ -140,19 +166,13 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 	//Loop through all the dependencies
 	if (pointers_to_recipes[track]->dep_count){
 		for(int index= 0; index< pointers_to_recipes[track]->dep_count; index++){
-			
-			//Check if the "track"-indexed depencency is depended on anyother avilable targets
-			//The check always skips the fist elment on the target list
-			for (curr_line = 1; curr_line<line; curr_line++){
-				//If the dependancy is on a target file within the fakefile
-				if (strcmp(pointers_to_recipes[track]->deps[index], pointers_to_recipes[curr_line]->target) ==0){
-					//Recurcevely execute that target first
-					//Check for the return if '-1' then return -1 for error
-					if (processing(pointers_to_recipes, line, curr_line) == -1){
-						return -1;
-					}
-					break; //If found stop searching
-				}
+			//Flag for if the dependancy is found as a target
+			int found;
+			//Call the function to check if there is any target matching the dependancy
+			found = target_search(pointers_to_recipes, line, pointers_to_recipes[track]->deps[index]);
+			//If error is generated during exectution throw an error
+			if (found == -2){
+				return -1;
 			}
 
 			//Now look for if an actual file exist within the current directory
@@ -165,7 +185,7 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 					time_t dependancy_time = getFileCreationTime(pointers_to_recipes[track]->deps[index]);
 					
 					//If the time stamp on the dependancy is newer than target
-					if (target_time > dependancy_time){
+					if (target_time >= dependancy_time){
 						dep_update_count++; // Take a record of it
 					}
 					
@@ -183,7 +203,7 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 		//Remember that we took a record for if dependancy is newer than target
 		//If the condition is true for all the all the dependancies then,
 		//DO NOT EXCUTE THE COMMAND(S)
-		if(dep_update_count == pointers_to_recipes[track]->dep_count){
+		if( (dep_update_count == pointers_to_recipes[track]->dep_count) && (pointers_to_recipes[track]->dep_count > 0) ){
 			printf("All the dependancy are upto date for %s \n", pointers_to_recipes[track]->target);
 			return 0;
 		}
