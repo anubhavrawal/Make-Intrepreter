@@ -1,5 +1,5 @@
 # default target
-all: hworld
+all: hworld word_count
 
 # source code compilation
 hworld: hworld.o

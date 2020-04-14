@@ -103,18 +103,31 @@ int excutecmd(char *command){
 		
 		printf("\n");
 		
-		execvp(args[0],args); 
+		if ((execvp(args[0],args)  < 0)) {
+			perror("execlp error");
+			return -1;
+			exit(-1);
+		}
 	}
+	
 	else {
 		waitpid(pid1, NULL, 0);
 		return 0;
 	}
+	
 	return 0;
+}
+
+static time_t getFileCreationTime(char *path) {
+    struct stat attr;
+    stat(path, &attr);
+    return attr.st_mtime;
 }
 
 int processing(recipe_t ** pointers_to_recipes, int line, int track){
 	int valdity_check = 0;
 	int curr_line;
+	int dep_update_count = 0;
 	if (pointers_to_recipes[track]->dep_count){
 		for(int index= 0; index< pointers_to_recipes[track]->dep_count; index++){
 			int found = 0;
@@ -132,19 +145,34 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 			//If the dependency is on a .c or .h files instread of targets within the fakefile
 			int dep_len = strlen(pointers_to_recipes[track]->deps[index]);
 			char *last_two = &pointers_to_recipes[track]->deps[index][dep_len-2];
-			if ( strcmp(last_two, ".c") == 0 || strcmp(last_two, ".h") == 0 || strcmp(last_two, ".o") == 0){
-				
-				if( access( pointers_to_recipes[track]->deps[index] , F_OK ) == -1 ) {
-					printf("Error dependency file %s cannot be found!! \n",pointers_to_recipes[track]->deps[index]);
-					return -1;
-				} 
-				
+
+			if( access( pointers_to_recipes[track]->deps[index] , F_OK ) != -1 ) { 
+				if( access( pointers_to_recipes[track]->target , F_OK ) != -1 ) {
+					time_t target_time = getFileCreationTime( pointers_to_recipes[track]->target);
+					time_t dependancy_time = getFileCreationTime(pointers_to_recipes[track]->deps[index]);
+					if (target_time > dependancy_time){
+						dep_update_count++;
+					}
+					
+				}
+			}
+
+			else{
+				printf("Error dependency file %s cannot be found!! \n",pointers_to_recipes[track]->deps[index]);
+				return -1;
 			}
 
 		}
+		if(dep_update_count == pointers_to_recipes[track]->dep_count){
+			printf("All the dependancy are upto date for %s \n", pointers_to_recipes[track]->target);
+			return 0;
+		}
 
 		for(int cmd_count=0; cmd_count< pointers_to_recipes[track]->cmd_count; cmd_count++){
-			valdity_check = excutecmd(pointers_to_recipes[track]->commands[cmd_count]);
+			if (excutecmd(pointers_to_recipes[track]->commands[cmd_count]) == -1){
+				printf("Execution error \n");
+				return -1;
+			}
 		}
 
 	}
