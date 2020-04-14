@@ -26,10 +26,7 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 			}
 			pointers_to_recipes[line]->deps = realloc(pointers_to_recipes[line]->deps, (count+1) *sizeof(char *));
 			
-			
 			pointers_to_recipes[line]->deps[count] = strdup(deps);
-			
-			
 			
 			count ++;
 		}
@@ -96,7 +93,9 @@ int excutecmd(char *command){
 
 	//Child process
 	if (0 == pid1) {
+		//Print user feedback on what command is being executed
 		printf("%s \n", command);
+
 		//Split the command based on spaces
 		args[i] = strtok(command," ");
 		while(args[i]!=NULL){
