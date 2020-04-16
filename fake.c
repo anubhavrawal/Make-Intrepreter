@@ -1,6 +1,26 @@
 #include <errno.h>
 #include "fake.h"
 
+char *trimwhitespace(char *str)
+{
+  char *end;
+
+  // Trim leading space
+  while(isspace((unsigned char)*str)) str++;
+
+  if(*str == 0)  // All spaces?
+    return str;
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace((unsigned char)*end)) end--;
+
+  // Write new null terminator character
+  end[1] = '\0';
+
+  return str;
+}
+
 //Parses and stores the Rule targets and dependencies
 int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	char *rule_target;
@@ -16,16 +36,22 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	if (strcmp(rule_target,buf)){
 		pointers_to_recipes[line]->target = strdup(rule_target);
 
-		char *deps = strsep(&buf, " ");
+		buf = trimwhitespace(buf);
+		char *deps;
 
 		int count =0;
 		while (deps){
-            deps = strsep(&buf, " ");
+			deps = strsep(&buf, " ");
+            //printf("deps: |%s| \n", deps);
 			if (deps == NULL){
 				break;
 			}
+			//Ignore the unncessary spaces and tabs
+			if (*deps == '\0' || *deps == '\t'){
+				continue;
+			}
 			pointers_to_recipes[line]->deps = realloc(pointers_to_recipes[line]->deps, (count+1) *sizeof(char *));
-			
+
 			pointers_to_recipes[line]->deps[count] = strdup(deps);
 			
 			count ++;
@@ -47,14 +73,14 @@ void display(recipe_t ** pointers_to_recipes, int line){
 	int i;
 	int count;
 	for (i=0; i<=line; i++){
-		printf("The Targets are: %s \n",pointers_to_recipes[i]->target);
+		printf("The Targets are: |%s| \n",pointers_to_recipes[i]->target);
 
 		for(count=0; count < pointers_to_recipes[i]->dep_count; count++){
-			printf("The %s's  deps %d is: %s \n",pointers_to_recipes[i]->target, count,pointers_to_recipes[i]->deps[count]);
+			printf("The %s's  deps %d is: |%s| \n",pointers_to_recipes[i]->target, count,pointers_to_recipes[i]->deps[count]);
 		}
 		
 		for(count=0; count < pointers_to_recipes[i]->cmd_count; count++){
-			printf("The %s's commands %d is: %s \n", pointers_to_recipes[i]->target, count , pointers_to_recipes[i]->commands[count]);
+			printf("The %s's commands %d is: |%s| \n", pointers_to_recipes[i]->target, count , pointers_to_recipes[i]->commands[count]);
 		}
 		printf("\n");
 	}
@@ -87,16 +113,52 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 int excutecmd(char *command){
 	char *args[10];
 	int i=0;
+
+	int pipefd[2];
+	int pipe_check = 0;
+	int STD_check  = 0;
 	
 	//Forking for 2 processes
 	pid_t pid1 = fork();
+
+	//Incase of piping
+	if (strchr(command, '|') != NULL){
+		pipe(pipefd);
+		pipe_check = 1;
+	}
+	if (strchr(command, '>') != NULL){
+		STD_check = 1;
+	}
+	
+	else if (strchr(command, '<') != NULL ){
+		STD_check = 2;
+	}
+
+	else if ((strchr(command, '<')!= NULL) && (strchr(command, '>')!= NULL) ){
+		STD_check = 0;
+	}
 
 	//Child process
 	if (0 == pid1) {
 		//Print user feedback on what command is being executed
 		printf("%s \n", command);
 
+		if (pipe_check == 1){
+			char * command_tmp = strsep(&command, "|");
+			command = command_tmp;
+		}
+		printf("I want to closed eveything \n");
+		if (STD_check == 1){
+			printf("I closed eveything \n");
+			// close the read end of the pipe
+			close(pipefd[0]);
+			// make the write end the process's standard output
+			dup2(pipefd[1],STDOUT_FILENO);
+		}
+		//printf("THe hworld content is: \n %s", pipefd[0]);
+
 		//Split the command based on spaces
+		//i.e. "ls -la"
 		args[i] = strtok(command," ");
 		while(args[i]!=NULL){
 			args[++i] = strtok(NULL," ");
@@ -104,25 +166,114 @@ int excutecmd(char *command){
 		args[i] = NULL; // Add NULL as last argument for exec
 
 		//Print the command being executed
-		//for (int k = 0; k < i; ++k) 
-		//	printf("%d, %s\n",k, args[k]);
-		//printf("\n");
+		printf("Child 1 detail:");
+		for (int k = 0; k < i; ++k) 
+			printf("%d: %s\n",k, args[k]);
+		printf("\n");
 		
-		//Execute the command and handeling child process error
-		if ((execvp(args[0],args)  < 0)) {
-			perror("execlp error");
-			return -1;
+		//Execute the command
+		if ((execvp(args[0], args) < 0)) {
+			perror("execvp error");
 			exit(-1);
 		}
 	}
-	
+
 	//Parent Process
 	else {
 		//wait for child to end
-		waitpid(pid1, NULL, 0);
+		//waitpid(pid1, NULL, 0);
+		pid_t pid2 = fork();
+		
+		char *args2[3];
+		
+		//Child2
+		if (0 == pid2) {
+			if (pipe_check == 1){
+				printf("Child2: %s \n", command);
+				char *command_tmp;
+				if (STD_check == 1){
+					// close the write end of the pipe
+					close(pipefd[1]);
+					// make the read end the process's standard input
+					dup2(pipefd[0], STDIN_FILENO);
+
+					command_tmp = strsep(&command, ">");
+					
+					strsep(&command_tmp, "|");
+					//command = command_tmp;
+					command_tmp = trimwhitespace(command_tmp);
+					command = trimwhitespace(command);
+					
+					//printf("Command tmp is: |%s| \n", command_tmp);
+
+					//Split the command_tmp based on spaces
+					//i.e "grep hworld"
+					i=0;
+					args2[i] = strtok(command_tmp," ");
+					while(args2[i]!=NULL){
+						args2[++i] = strtok(NULL," ");
+					}
+					args2[i] = NULL; // Add NULL as last argument for exec
+					
+					//Print the command being executed
+					for (int k = 0; k <= i; ++k) 
+						printf("%d: |%s|\n",k, args2[k]);
+					printf("\n");
+
+					
+					printf("Command is: |%s| \n", command);
+					
+					// open a file named FILTER to redirect output into
+					int rfd = open(command, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+					// make the opened file the process's standard output
+					dup2(rfd, STDOUT_FILENO);
+					
+				}
+				//printf("Command123333 is: |%s| \n", command);
+				if ((execvp(args2[0], args2) < 0)) {
+					perror("execvp error");
+					exit(-1);
+				}
+			}
+			//Else statement for if there is no piping required
+			else{
+				//close(pipefd[0]);
+				//close(pipefd[1]);
+				args[0] = NULL;
+				execvp(args[0],args);
+			}	
+		}
+			
+		else
+		{
+			close(pipefd[0]);
+			close(pipefd[1]);
+			int status1;
+			int status2;
+			waitpid(pid1, &status1, 0);
+			waitpid(pid2, &status2, 0);
+			//Handel with the error occured in the child process
+			int out_check = 0;
+			if ( WIFEXITED(status1) ){
+				if(WEXITSTATUS(status1) >0 ){
+					printf("Child 1 failed \n");
+					out_check++;
+				}
+			}
+			if ((WIFEXITED(status2) && pipe_check == 1)){
+				if((WEXITSTATUS(status2) && pipe_check == 1)){
+					printf("Child 2 failed \n");
+					out_check++;
+				}
+			}
+			if (out_check >0){
+				return -1;
+			}
+
+		}
+
 		return 0;
-	}
-	
+	}	
 	return 0;
 }
 
@@ -163,7 +314,7 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 	int dep_update_count = 0;
 
 	//Loop through all the dependencies
-	if (pointers_to_recipes[track]->dep_count){
+	if (pointers_to_recipes[track]->dep_count > 0){
 		for(int index= 0; index< pointers_to_recipes[track]->dep_count; index++){
 			//Flag for if the dependancy is found as a target
 			int found;
@@ -193,7 +344,7 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 
 			//Still not found??? Too bad. Raise an error with -1
 			else{
-				printf("Error dependency file %s cannot be found!! \n",pointers_to_recipes[track]->deps[index]);
+				printf("Error dependency file {%s} cannot be found from target: {%s}. Also the number of dependecies is: %d!! \n",pointers_to_recipes[track]->deps[index], pointers_to_recipes[track]->target, pointers_to_recipes[track]->dep_count);
 				return -1;
 			}
 
@@ -203,20 +354,19 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 		//If the condition is true for all the all the dependancies then,
 		//DO NOT EXCUTE THE COMMAND(S)
 		if( (dep_update_count == pointers_to_recipes[track]->dep_count) && (pointers_to_recipes[track]->dep_count > 0) ){
-			printf("All the dependancy are upto date for %s \n", pointers_to_recipes[track]->target);
+			printf("fake: %s is upto date \n", pointers_to_recipes[track]->target);
 			return 0;
 		}
-
-		//If is FALSE for even 1  of dependencies THEN,
-		//EXCUTE THE COMMAND(S)
-		for(int cmd_count=0; cmd_count< pointers_to_recipes[track]->cmd_count; cmd_count++){
-			if (excutecmd(pointers_to_recipes[track]->commands[cmd_count]) == -1){
-				printf("Execution error \n");
-				return -1;
-			}
-		}
-
 	}
+	//If is FALSE for even 1  of dependencies THEN,
+	//EXCUTE THE COMMAND(S)
+	for(int cmd_count=0; cmd_count< pointers_to_recipes[track]->cmd_count; cmd_count++){
+		if (excutecmd(pointers_to_recipes[track]->commands[cmd_count]) == -1){
+			printf("fake: Execution error \n");
+			return -1;
+		}
+	}
+
 	//Function end
 	return 0;
 }
@@ -333,8 +483,8 @@ int main(){
 	}
 
 	if (processing(pointers_to_recipes, line, 0) == -1){
-		printf("Fakefie fatal execution!!! \n");
-		printf("Execution halt!! \n");
+		printf("fake: Fatal execution!!! \n");
+		printf("fake: Execution halt!! \n");
 	}
 
 	//Freeing all the used memory

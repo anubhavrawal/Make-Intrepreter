@@ -18,7 +18,7 @@
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
+                    "text": "-gdb-set follow-fork-mode child -enable-pretty-printing",
                     "ignoreFailures": true
                 }
             ],
