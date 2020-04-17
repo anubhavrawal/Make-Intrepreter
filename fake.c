@@ -117,15 +117,17 @@ int excutecmd(char *command){
 	int pipefd[2];
 	int pipe_check = 0;
 	int STD_check  = 0;
-	
-	//Forking for 2 processes
-	pid_t pid1 = fork();
 
 	//Incase of piping
 	if (strchr(command, '|') != NULL){
 		pipe(pipefd);
 		pipe_check = 1;
 	}
+	
+	//Forking for 2 processes
+	pid_t pid1 = fork();
+
+	
 	if (strchr(command, '>') != NULL){
 		STD_check = 1;
 	}
@@ -147,9 +149,8 @@ int excutecmd(char *command){
 			char * command_tmp = strsep(&command, "|");
 			command = command_tmp;
 		}
-		printf("I want to closed eveything \n");
+
 		if (STD_check == 1){
-			printf("I closed eveything \n");
 			// close the read end of the pipe
 			close(pipefd[0]);
 			// make the write end the process's standard output
@@ -166,10 +167,10 @@ int excutecmd(char *command){
 		args[i] = NULL; // Add NULL as last argument for exec
 
 		//Print the command being executed
-		printf("Child 1 detail:");
-		for (int k = 0; k < i; ++k) 
-			printf("%d: %s\n",k, args[k]);
-		printf("\n");
+		//printf("Child 1 detail:");
+		//for (int k = 0; k < i; ++k) 
+		//	printf("%d: %s\n",k, args[k]);
+		//printf("\n");
 		
 		//Execute the command
 		if ((execvp(args[0], args) < 0)) {
@@ -189,7 +190,7 @@ int excutecmd(char *command){
 		//Child2
 		if (0 == pid2) {
 			if (pipe_check == 1){
-				printf("Child2: %s \n", command);
+				//printf("Child2: %s \n", command);
 				char *command_tmp;
 				if (STD_check == 1){
 					// close the write end of the pipe
@@ -216,12 +217,12 @@ int excutecmd(char *command){
 					args2[i] = NULL; // Add NULL as last argument for exec
 					
 					//Print the command being executed
-					for (int k = 0; k <= i; ++k) 
-						printf("%d: |%s|\n",k, args2[k]);
-					printf("\n");
+					//for (int k = 0; k <= i; ++k) 
+					//	printf("%d: |%s|\n",k, args2[k]);
+					//printf("\n");
 
 					
-					printf("Command is: |%s| \n", command);
+					//printf("Command is: |%s| \n", command);
 					
 					// open a file named FILTER to redirect output into
 					int rfd = open(command, O_WRONLY|O_CREAT|O_TRUNC, 0644);
@@ -237,8 +238,6 @@ int excutecmd(char *command){
 			}
 			//Else statement for if there is no piping required
 			else{
-				//close(pipefd[0]);
-				//close(pipefd[1]);
 				args[0] = NULL;
 				execvp(args[0],args);
 			}	

@@ -11,5 +11,4 @@ valmem: clean fake
 	valgrind --leak-check=full ../fake
 
 clean:
-	rm -f ../fake report.txt
-#rm -f ../fake hworld.o hworld report.txt
+	rm -f ../fake hworld.o hworld report.txt

@@ -1,5 +1,5 @@
 # default target report.txt
-all: report.txt
+all: hworld report.txt
 
 # source code compilation
 hworld: hworld.o
