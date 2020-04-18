@@ -1,5 +1,5 @@
-# default target report.txt
-all: hworld report.txt
+# default target
+all: hworld word_count
 
 # source code compilation
 hworld: hworld.o
@@ -22,5 +22,5 @@ cats:
 
 # clean target
 clean:
-	rm report.txt hworld.o hworld
+	rm -f report.txt hworld.o hworld
 

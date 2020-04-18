@@ -12,3 +12,5 @@ valmem: clean fake
 
 clean:
 	rm -f ../fake hworld.o hworld report.txt
+	
+#
