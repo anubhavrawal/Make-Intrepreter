@@ -447,7 +447,20 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 }
 
 int main(int argc, char *argv[]){
-    FILE *fake_reader = fopen("Fakefile1","r");
+	char *filename;
+	if (argc >3){
+		printf("fake: invalid input format!! \n");
+	}
+	else if ((argc ==3) && (strcmp("-f", argv[1]) ==0) ){
+		filename = argv[2];
+	}
+	else{
+		filename = "Fakefile1";
+	}
+	
+	
+
+    FILE *fake_reader = fopen(filename,"r");
     char *reader = calloc(1,1024);//Allocating memeory for file line reader
     char *buf; // pointer to move within the line
     int line = 0;
@@ -563,11 +576,8 @@ int main(int argc, char *argv[]){
 	
 	//printf("The command is: |%s| \n", argv[1]);
 
-	if (argc > 2){
-		printf("fake: error in command!!!");
-	}
 
-	else if (argc == 2){
+	if (argc == 2){
 		specific_check  = target_search(pointers_to_recipes, line, argv[1]);
 
 		if (specific_check == -1) {
