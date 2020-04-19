@@ -1,8 +1,6 @@
 #include <errno.h>
 #include "fake.h"
 
-//Trims the leading annd ending white spaces
-//Got from the internet and modified it, I forgot to record the source, sorry!!!!
 char *trimwhitespace(char *str)
 {
   char *end;
@@ -38,17 +36,14 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	if (strcmp(rule_target,buf)){
 		pointers_to_recipes[line]->target = strdup(rule_target);
 
-		buf = trimwhitespace(buf);
-		char *deps;
+		char *deps = trimwhitespace(buf);
 
 		int count =0;
 		while (deps){
-			deps = strsep(&buf, " ");
-            //printf("deps: |%s| \n", deps);
+            deps = strsep(&buf, " ");
 			if (deps == NULL){
 				break;
 			}
-			//Ignore the unncessary spaces and tabs
 			if (*deps == '\0' || *deps == '\t'){
 				continue;
 			}
@@ -75,14 +70,14 @@ void display(recipe_t ** pointers_to_recipes, int line){
 	int i;
 	int count;
 	for (i=0; i<=line; i++){
-		printf("The Targets are: |%s| \n",pointers_to_recipes[i]->target);
+		printf("The Targets are: %s \n",pointers_to_recipes[i]->target);
 
 		for(count=0; count < pointers_to_recipes[i]->dep_count; count++){
-			printf("The %s's  deps %d is: |%s| \n",pointers_to_recipes[i]->target, count,pointers_to_recipes[i]->deps[count]);
+			printf("The %s's  deps %d is: %s \n",pointers_to_recipes[i]->target, count,pointers_to_recipes[i]->deps[count]);
 		}
 		
 		for(count=0; count < pointers_to_recipes[i]->cmd_count; count++){
-			printf("The %s's commands %d is: |%s| \n", pointers_to_recipes[i]->target, count , pointers_to_recipes[i]->commands[count]);
+			printf("The %s's commands %d is: %s \n", pointers_to_recipes[i]->target, count , pointers_to_recipes[i]->commands[count]);
 		}
 		printf("\n");
 	}
@@ -112,28 +107,22 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 
 }
 
-//Executes the feeded command, is bascially a shell ;) , tried  my best to make it so.
 int excutecmd(char *command){
-	printf("%s \n", command);
 	char *args[10];
 	int i=0;
-	char *store;
 
 	int pipefd[2];
 	int pipe_check = 0;
 	int STD_check  = 0;
-	char *command_tmp;
+	
+	//Forking for 2 processes
+	pid_t pid1 = fork();
 
 	//Incase of piping
 	if (strchr(command, '|') != NULL){
 		pipe(pipefd);
 		pipe_check = 1;
 	}
-	
-	//Forking for 2 processes
-	pid_t pid1 = fork();
-
-	
 	if (strchr(command, '>') != NULL){
 		STD_check = 1;
 	}
@@ -143,187 +132,104 @@ int excutecmd(char *command){
 	}
 
 	else if ((strchr(command, '<')!= NULL) && (strchr(command, '>')!= NULL) ){
-		STD_check = 3;
+		STD_check = 0;
 	}
 
 	//Child process
 	if (0 == pid1) {
 		//Print user feedback on what command is being executed
+		printf("%s \n", command);
 
-		if ((pipe_check == 1) && (STD_check == 1)){
-			//char *command_tmp = strsep(&command, "|");
-			//command = command_tmp;//extracting the "ls -la" section
-			command = strsep(&command, "|");
+		if (pipe_check == 1){
+			char * command_tmp = strsep(&command, "|");
+			command = command_tmp;
+		}
 
+		if (STD_check == 1){
 			// close the read end of the pipe
 			close(pipefd[0]);
 			// make the write end the process's standard output
-			dup2(pipefd[1],STDOUT_FILENO);
-
+			dup2(pipefd[1], STDOUT_FILENO);
 		}
-
-		if ( (pipe_check == 0) && STD_check == 2){
-			command_tmp = strsep(&command, "<");
-			
-			command_tmp = trimwhitespace(command_tmp);
-			command = trimwhitespace(command);
-
-			int rfd = open(command, O_RDONLY);
-			// make the opened file the process's standard output
-			dup2(rfd, STDIN_FILENO);
-
-			command = command_tmp;
-		}
-
-		
-		else if ( (pipe_check == 0) && STD_check == 1){
-			command_tmp = strsep(&command, ">");
-			
-			command_tmp = trimwhitespace(command_tmp);
-			command = trimwhitespace(command);
-
-			// open a file named FILTER to redirect output into
-			int rfd = open(command, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-			// make the opened file the process's standard output
-			dup2(rfd, STDOUT_FILENO);
-
-			command = command_tmp;
-		}
-		
-		
-		
-		//printf("THe hworld content is: \n %s", pipefd[0]);
 
 		//Split the command based on spaces
-		//i.e. "ls -la"
-		args[i] = strsep(&command," ");
-        
-		while(command !=NULL){
-            //args[++i] = store;
-			//printf("Store is: {%s}\n", args[i]);
-			
-            if (*command == '\"'){
-                command++;
-                args[++i] = strsep(&command,"\"");
-            }
-            else
-            {
-                store = strsep(&command," ");
-				if (*store != '\0'){
-					args[++i] = store;
-				}
-
-				
-            }
+		args[i] = strtok(command," ");
+		while(args[i]!=NULL){
+			args[++i] = strtok(NULL," ");
 		}
-		args[++i] = NULL; // Add NULL as last argument for exec
+		args[i] = NULL; // Add NULL as last argument for exec
 
 		//Print the command being executed
-		//printf("Child 1 detail: \n");
 		//for (int k = 0; k < i; ++k) 
-		//	printf("%d: %s\n",k, args[k]);
+		//	printf("%d, %s\n",k, args[k]);
 		//printf("\n");
 		
 		//Execute the command
 		if ((execvp(args[0], args) < 0)) {
-			perror("execvp error");
+			perror("execlp error");
 			exit(-1);
 		}
 	}
 
-	//Parent Process(tmp)
+	//Parent Process
 	else {
 		//wait for child to end
 		//waitpid(pid1, NULL, 0);
-		pid_t pid2 = fork();
+		pid_t pid2;
 		
-		char *args2[10];
-		
-		//Child2
+			
+		pid2 = fork();
 		if (0 == pid2) {
 			if (pipe_check == 1){
-				//printf("Child2: %s \n", command);
-				if ((pipe_check == 1) && (STD_check == 1)){
+				char *command_tmp;
+				if (STD_check == 1){
 					// close the write end of the pipe
 					close(pipefd[1]);
 					// make the read end the process's standard input
 					dup2(pipefd[0], STDIN_FILENO);
-
-					//only keeep the filename in command
 					command_tmp = strsep(&command, ">");
-					
-					//Only keep the second portion of command after '|'
-					strsep(&command_tmp, "|");
-
-					command_tmp = trimwhitespace(command_tmp);
-					command = trimwhitespace(command);
-					
-					//printf("Command tmp is: |%s| \n", command_tmp);
-
-					//Split the command_tmp based on spaces
-					//i.e "grep hworld"
-					i=0;
-					args2[i] = strtok(command_tmp," ");
-					while(args2[i]!=NULL){
-						args2[++i] = strtok(NULL," ");
-					}
-					args2[i] = NULL; // Add NULL as last argument for exec
-					
-					//Print the command being executed
-					//for (int k = 0; k <= i; ++k) 
-					//	printf("%d: |%s|\n",k, args2[k]);
-					//printf("\n");
-
-					
-					//printf("Command is: |%s| \n", command);
-					
 					// open a file named FILTER to redirect output into
-					int rfd = open(command, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+					int rfd = open(command, O_WRONLY|O_CREAT, 0644);
 					// make the opened file the process's standard output
 					dup2(rfd, STDOUT_FILENO);
-					
 				}
-				//printf("Command123333 is: |%s| \n", command);
-				if ((execvp(args2[0], args2) < 0)) {
-					perror("execvp error");
+				printf("Command is: %s \n", command);
+				command = strsep(&command_tmp, "|");
+				command = command_tmp;
+				//Split the command based on spaces
+				args[i] = strtok(command," ");
+				while(args[i]!=NULL){
+					args[++i] = strtok(NULL," ");
+				}
+				args[i] = NULL; // Add NULL as last argument for exec
+				
+				if ((execvp(args[0], args) < 0)) {
+					perror("execlp error");
 					exit(-1);
 				}
 			}
-			//Else statement for if there is no piping required
 			else{
+				close(pipefd[0]);
+				close(pipefd[1]);
 				args[0] = NULL;
 				execvp(args[0],args);
 			}	
 		}
-		
-		//Final parent process
+			
 		else
 		{
-			close(pipefd[0]);
-			close(pipefd[1]);
+			
 			int status1;
 			int status2;
 			waitpid(pid1, &status1, 0);
 			waitpid(pid2, &status2, 0);
 			//Handel with the error occured in the child process
-			int out_check = 0;
-
-			if ( WIFEXITED(status1)){
-				if(WEXITSTATUS(status1) >0 ){
-					printf("Child 1 failed \n");
-					out_check++;
+			
+			if ( WIFEXITED(status1) || WIFEXITED(status2) ){
+				if(WEXITSTATUS(status1) >0 || WEXITSTATUS(status2) ){
+					return -1;
 				}
-			}
-			if ((WIFEXITED(status2) && pipe_check == 1)){
-				if((WEXITSTATUS(status2) && pipe_check == 1)){
-					printf("Child 2 failed \n");
-					out_check++;
-				}
-			}
-			if (out_check >0){
-				return -1;
-			}
-
+			} 
 		}
 
 		return 0;
@@ -344,13 +250,10 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track);
 //Search if the given string is avialble as a target and processses it
 int target_search(recipe_t ** pointers_to_recipes, int line, char *input){
 	int curr_line;
-	//printf("input got: |%s|\n", input);
 	//Check if the "track"-indexed depencency is depended on anyother avilable targets
 	//The check always skips the fist elment on the target list
-	for (curr_line = 0; curr_line<=line; curr_line++){
+	for (curr_line = 1; curr_line<line; curr_line++){
 		//If the dependancy is on a target file within the fakefile
-		//printf("%d |%s| vs. |%s| \n",curr_line, input, pointers_to_recipes[curr_line]->target);
-
 		if (strcmp(input, pointers_to_recipes[curr_line]->target) ==0){
 			//Recurcevely execute that target first
 			//Check for the return if '-1' then return -1 for error
@@ -361,25 +264,7 @@ int target_search(recipe_t ** pointers_to_recipes, int line, char *input){
 			break; //If FOUND stop searching
 		}
 	}
-
-	return -1; //if not found
-}
-
-//Checks if the target at index [track] is present within the current directory
-int file_presense(recipe_t ** pointers_to_recipes, int track, int index){
-	//Now lets check if the current target is also a file that already exist within this directory
-	if( access( pointers_to_recipes[track]->target , F_OK ) != -1 ) {
-		//Lets get their modified date-time stamps
-		time_t target_time = getFileCreationTime( pointers_to_recipes[track]->target);
-		time_t dependancy_time = getFileCreationTime(pointers_to_recipes[track]->deps[index]);
-		
-		//If the time stamp on the dependancy is newer than target
-		if (target_time >= dependancy_time){
-			return 1; // Take a record of it
-		}
-		
-	}
-	return 0;
+	return -1;
 }
 
 //Processing the command
@@ -387,57 +272,39 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 	int valdity_check = 0;
 	int curr_line;
 	int dep_update_count = 0;
-	int file_test = 0;
-
-	//Flag for if the dependancy is found as a target
-	int found;
-
-	if(pointers_to_recipes[track]->dep_count == 0){
-		if( access( pointers_to_recipes[track]->target , F_OK ) != -1 ) {
-			printf("fake: %s is upto date \n", pointers_to_recipes[track]->target);
-			return 0;
-		}
-	}
-
 
 	//Loop through all the dependencies
-	if (pointers_to_recipes[track]->dep_count > 0){
+	if (pointers_to_recipes[track]->dep_count){
 		for(int index= 0; index< pointers_to_recipes[track]->dep_count; index++){
-
-			//Lets check if an actual file exist within the current directory
-			if( access( pointers_to_recipes[track]->deps[index] , F_OK ) != -1 ) {
-				//Yes, Great
-				//Call the function for the test and recored its return value
-				file_test =file_presense(pointers_to_recipes, track, index);
-				dep_update_count = dep_update_count + file_test;
-
-				//Skip this dependecy if file already found
-				if (file_test == 1){
-					continue; 
-				}
-			}
-		
-			//Well if not lets check if a target is avilable with the name
+			//Flag for if the dependancy is found as a target
+			int found;
 			//Call the function to check if there is any target matching the dependancy
-			//If error is generated during exectution throw an error
 			found = target_search(pointers_to_recipes, line, pointers_to_recipes[track]->deps[index]);
-			if (found == -2 ){
+			//If error is generated during exectution throw an error
+			if (found == -2){
 				return -1;
 			}
 
-			//Now again look for if an actual file exist within the current directory
+			//Now look for if an actual file exist within the current directory
 			if( access( pointers_to_recipes[track]->deps[index] , F_OK ) != -1 ) {
-				dep_update_count = dep_update_count + file_presense(pointers_to_recipes, track, index);
+				//Yes, Great
+				//Now lets check if the current target is also a file that already exist within this directory
+				if( access( pointers_to_recipes[track]->target , F_OK ) != -1 ) {
+					//Lets get their modified date-time stamps
+					time_t target_time = getFileCreationTime( pointers_to_recipes[track]->target);
+					time_t dependancy_time = getFileCreationTime(pointers_to_recipes[track]->deps[index]);
+					
+					//If the time stamp on the dependancy is newer than target
+					if (target_time >= dependancy_time){
+						dep_update_count++; // Take a record of it
+					}
+					
+				}
 			}
-			
-			//if it already satisfied the target search test then skip to the next dependancy
-			else if (found == 1){
-				continue;
-			}
-			
+
 			//Still not found??? Too bad. Raise an error with -1
 			else{
-				printf("Error dependency file {%s} cannot be found from target: {%s}. Also the number of dependecies is: %d!! \n",pointers_to_recipes[track]->deps[index], pointers_to_recipes[track]->target, pointers_to_recipes[track]->dep_count);
+				printf("Error dependency file %s cannot be found!! \n",pointers_to_recipes[track]->deps[index]);
 				return -1;
 			}
 
@@ -446,7 +313,7 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 		//Remember that we took a record for if dependancy is newer than target
 		//If the condition is true for all the all the dependancies then,
 		//DO NOT EXCUTE THE COMMAND(S)
-		if(dep_update_count == pointers_to_recipes[track]->dep_count){
+		if( (dep_update_count == pointers_to_recipes[track]->dep_count) && (pointers_to_recipes[track]->dep_count > 0) ){
 			printf("fake: %s is upto date \n", pointers_to_recipes[track]->target);
 			return 0;
 		}
@@ -464,21 +331,8 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 	return 0;
 }
 
-int main(int argc, char *argv[]){
-	char *filename;
-	if (argc >3){
-		printf("fake: invalid input format!! \n");
-	}
-	else if ((argc ==3) && (strcmp("-f", argv[1]) ==0) ){
-		filename = argv[2];
-	}
-	else{
-		filename = "Fakefile1";
-	}
-	
-	
-
-    FILE *fake_reader = fopen(filename,"r");
+int main(){
+    FILE *fake_reader = fopen("Fakefile1","r");
     char *reader = calloc(1,1024);//Allocating memeory for file line reader
     char *buf; // pointer to move within the line
     int line = 0;
@@ -495,7 +349,7 @@ int main(int argc, char *argv[]){
     if (fake_reader == NULL) 
     { 
         printf("Could not open the Fakefile!!! \n"); 
-        return -1; 
+        return 0; 
     }
     
     while( (condition == 1) && (fgets(reader, 1024, fake_reader)) ){
@@ -526,9 +380,8 @@ int main(int argc, char *argv[]){
 				}
 
 				else{
-					printf("fake: Error!!!! in file format!!! \n");
+					printf("Error!!!! in file format!!! \n");
 					condition = 0;
-					exit(-1);
 					break;
 				}
 
@@ -560,7 +413,6 @@ int main(int argc, char *argv[]){
 					line++;
 					printf("Invalid format rule state!!!! \n");
 					condition = 0; //breaking the while loop
-					exit(-1);
 					break;
 				}
 				
@@ -585,26 +437,12 @@ int main(int argc, char *argv[]){
 		line--;
 	}
 
-	int specific_check;
-
 	//Display only if eveything went well
 	if (condition){
 		//display(pointers_to_recipes, line);
 	}
 
-	if (argc == 2){
-		specific_check  = target_search(pointers_to_recipes, line, argv[1]);
-
-		if (specific_check == -1) {
-			printf("fake: target not found!!! \n");
-		}
-		else if (specific_check == -2)
-		{
-			printf("fake: execution error!! \n");
-		}
-		
-	}
-	else if (processing(pointers_to_recipes, line, 0) == -1){
+	if (processing(pointers_to_recipes, line, 0) == -1){
 		printf("fake: Fatal execution!!! \n");
 		printf("fake: Execution halt!! \n");
 	}
