@@ -363,7 +363,6 @@ int excutecmd(char *command){
 		char *args2[50];
 		if (pipe_check == 1){
 			pid2 = fork();
-			printf("I forked!!! \n");
 			//Child2
 			if (0 == pid2) {
 				//printf("Child2: %s \n", command);
