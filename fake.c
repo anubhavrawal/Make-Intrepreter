@@ -366,13 +366,13 @@ int excutecmd(char *command){
 	else {
 		//wait for child to end
 		//waitpid(pid1, NULL, 0);
-		pid_t pid2 = fork();
+		pid_t pid2;
 		
 		char *args2[50];
-		
-		//Child2
-		if (0 == pid2) {
-			if (pipe_check == 1){
+		if (pipe_check == 1){
+			pid2 = fork();
+			//Child2
+			if (0 == pid2) {
 				//printf("Child2: %s \n", command);
 				if ((pipe_check == 1) && (STD_check == 1)){
 					// close the write end of the pipe
@@ -428,23 +428,29 @@ int excutecmd(char *command){
 					exit(-1);
 				}
 			}
-			//Else statement for if there is no piping required
-			else{
-				args[0] = NULL;
-				execvp(args[0],args);
-			}	
 		}
 		
 		//Final parent process
 		else{
-			close(pipefd[0]);
-			close(pipefd[1]);
+			if (pipe_check == 1){
+				close(pipefd[0]);
+				close(pipefd[1]);
+			}
+
 			int status1;
 			int status2;
 			waitpid(pid1, &status1, 0);
-			waitpid(pid2, &status2, 0);
+			//printf("I waited for second thread to finish!!! \n");
+
+			//Wait for second pipe only if there was a pipe initially
+			if (pipe_check == 1){
+				printf("I waited for second thread to finish!!! \n");
+				waitpid(pid2, &status2, 0);
+			}
+
 			//Handel with the error occured in the child process
 			int out_check = 0;
+			
 
 			if ( WIFEXITED(status1)){
 				if(WEXITSTATUS(status1) >0 ){
@@ -452,10 +458,13 @@ int excutecmd(char *command){
 					out_check++;
 				}
 			}
-			if ((WIFEXITED(status2) && pipe_check == 1)){
-				if((WEXITSTATUS(status2) && pipe_check == 1)){
-					printf("Child 2 failed \n");
-					out_check++;
+
+			if (pipe_check == 1){
+				if(WIFEXITED(status2)){
+					if((WEXITSTATUS(status2) && pipe_check == 1)){
+						printf("Child 2 failed \n");
+						out_check++;
+					}
 				}
 			}
 			if (out_check >0){
