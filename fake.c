@@ -237,7 +237,7 @@ int multi_pipe_parser(char *command, int j){
 
 //Executes the feeded command, is bascially a shell ;) , tried  my best to make it so.
 int excutecmd(char *command){
-	printf("%s \n", command);
+	printf(" \n \n %s \n", command);
 
 	//Lets see how many pipes we are about to deal with....
 	char *pipe_test_store = command; //temporary space to preserve command pointer
@@ -265,13 +265,8 @@ int excutecmd(char *command){
 
 	//Incase of piping
 	if (strchr(command, '|') != NULL){
-		pipe(pipefd);
 		pipe_check = 1;
 	}
-	
-	//Forking for 2 processes
-	pid_t pid1 = fork();
-
 	
 	if (strchr(command, '>') != NULL){
 		STD_check = 1;
@@ -284,6 +279,16 @@ int excutecmd(char *command){
 	else if ((strchr(command, '<')!= NULL) && (strchr(command, '>')!= NULL) ){
 		STD_check = 3;
 	}
+
+	//printf("The pipe check value at first is: %d\n", pipe_check);
+
+	if (pipe_check == 1){
+		pipe(pipefd);
+	}
+
+	//Forking for 2 processes
+	pid_t pid1 = fork();
+
 
 	//Child process
 	if (0 == pid1) {
@@ -366,13 +371,13 @@ int excutecmd(char *command){
 	else {
 		//wait for child to end
 		//waitpid(pid1, NULL, 0);
-		pid_t pid2;
+		//pid_t pid2;
 		
 		char *args2[50];
 		if (pipe_check == 1){
-			pid2 = fork();
+			pid1 = fork();
 			//Child2
-			if (0 == pid2) {
+			if (0 == pid1) {
 				//printf("Child2: %s \n", command);
 				if ((pipe_check == 1) && (STD_check == 1)){
 					// close the write end of the pipe
@@ -438,15 +443,17 @@ int excutecmd(char *command){
 			}
 
 			int status1;
-			int status2;
+			//int status2;
 			waitpid(pid1, &status1, 0);
-			//printf("I waited for second thread to finish!!! \n");
+			//printf("The pipe check value at last is: %d\n", pipe_check);
+			
+			//printf("Command in parent is %s!!! \n", command);
 
 			//Wait for second pipe only if there was a pipe initially
-			if (pipe_check == 1){
+			/*if (pipe_check == 1){
 				printf("I waited for second thread to finish!!! \n");
 				waitpid(pid2, &status2, 0);
-			}
+			}*/
 
 			//Handel with the error occured in the child process
 			int out_check = 0;
@@ -459,14 +466,17 @@ int excutecmd(char *command){
 				}
 			}
 
+			/*
 			if (pipe_check == 1){
 				if(WIFEXITED(status2)){
-					if((WEXITSTATUS(status2) && pipe_check == 1)){
+					if(WEXITSTATUS(status2)){
 						printf("Child 2 failed \n");
 						out_check++;
 					}
 				}
 			}
+			*/
+		
 			if (out_check >0){
 				return -1;
 			}
@@ -745,7 +755,8 @@ int main(int argc, char *argv[]){
 		//display(pointers_to_recipes, line);
 	}
 
-	if(file_change_check == 0){
+	if((file_change_check == 0) && (argc>=2) ){
+
 		for (int arg_index = 1;arg_index< argc; arg_index++){
 			specific_check  = target_search(pointers_to_recipes, line, argv[arg_index]);
 
