@@ -23,4 +23,3 @@ cats:
 # clean target
 clean:
 	rm report.txt hworld.o hworld
-

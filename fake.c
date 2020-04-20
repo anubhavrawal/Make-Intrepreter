@@ -358,7 +358,7 @@ int excutecmd(char *command){
 
 		//Print the command being executed
 		//printf("Child 1 detail: \n");
-		//for (int k = 0; k < i; ++k) 
+		//for (int k = 0; k <= i; ++k) 
 		//	printf("%d: %s\n",k, args[k]);
 		//printf("\n");
 		
@@ -373,13 +373,14 @@ int excutecmd(char *command){
 	else {
 		//wait for child to end
 		//waitpid(pid1, NULL, 0);
-		pid_t pid2 = fork();
+		pid_t pid2;
 		
-		char *args2[50];
-		
-		//Child2
-		if (0 == pid2) {
-			if (pipe_check == 1){
+		if (pipe_check == 1){
+			pid2 = fork();
+				
+			char *args2[50];
+			if (0 == pid2) {
+			
 				//printf("Child2: %s \n", command);
 				if ((pipe_check == 1) && (STD_check == 1)){
 					// close the write end of the pipe
@@ -428,40 +429,50 @@ int excutecmd(char *command){
 				}
 			}
 			//Else statement for if there is no piping required
-			else{
-				args[0] = NULL;
-				execvp(args[0],args);
-			}	
+				
 		}
+		/*
+		else{
+			//args2[0] = NULL;
+			//execvp(args2[0],args2);
+		}*/
 		
 		//Final parent process
 		else
 		{
-			close(pipefd[0]);
-			close(pipefd[1]);
-			int status1;
-			int status2;
-			waitpid(pid1, &status1, 0);
-			waitpid(pid2, &status2, 0);
+			if(pipe_check == 1){
+				close(pipefd[0]);
+				close(pipefd[1]);
+			}
+			int status;
+			//int status2;
+			//waitpid(pid1, &status1, 0);
+			//waitpid(pid2, &status2, 0);
 			//Handel with the error occured in the child process
 			int out_check = 0;
 
-			if ( WIFEXITED(status1)){
-				if(WEXITSTATUS(status1) >0 ){
-					printf("Child 1 failed \n");
-					out_check++;
+			/* Collect childs */
+			if(pipe_check != 1){
+				while ((pid1 = wait(&status)) > 0){
+					if ( WIFEXITED(status)){
+						if(WEXITSTATUS(status) >0 ){
+							printf("Child failed \n");
+							return -1;
+						}
+					}
 				}
 			}
-			if ((WIFEXITED(status2) && pipe_check == 1)){
-				if((WEXITSTATUS(status2) && pipe_check == 1)){
-					printf("Child 2 failed \n");
-					out_check++;
+			else{
+				while ((pid2 = wait(&status)) > 0){
+					if ( WIFEXITED(status)){
+						if(WEXITSTATUS(status) >0 ){
+							printf("Child failed \n");
+							return -1;
+						}
+					}
 				}
 			}
-			if (out_check >0){
-				return -1;
-			}
-
+			
 		}
 
 		return 0;
