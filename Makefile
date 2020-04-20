@@ -5,4 +5,4 @@ tmp:
 	cc tmp2.c -o tmp
 
 clean:
-	rm -f fake test/hworld.o test/hworld tmp
+	rm -f fake test/hworld.o test/hworld test/report.txt

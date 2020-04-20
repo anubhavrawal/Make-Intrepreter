@@ -435,8 +435,7 @@ int excutecmd(char *command){
 		}
 		
 		//Final parent process
-		else
-		{
+		else{
 			close(pipefd[0]);
 			close(pipefd[1]);
 			int status1;
