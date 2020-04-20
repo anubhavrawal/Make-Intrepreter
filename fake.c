@@ -612,9 +612,11 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 
 int main(int argc, char *argv[]){
 	char *filename;
+	int file_change_check = 0;
 	if ((argc ==3) && (strcmp("-f", argv[1]) ==0) ){
 		if( access( argv[2] , F_OK ) != -1 ) {
 			filename = argv[2];
+			file_change_check = 1;
 		}
 		else
 		{
@@ -743,18 +745,22 @@ int main(int argc, char *argv[]){
 		//display(pointers_to_recipes, line);
 	}
 
-	if (argc == 2){
-		specific_check  = target_search(pointers_to_recipes, line, argv[1]);
+	if(file_change_check == 0){
+		for (int arg_index = 1;arg_index< argc; arg_index++){
+			specific_check  = target_search(pointers_to_recipes, line, argv[arg_index]);
 
-		if (specific_check == -1) {
-			printf("fake: target not found!!! \n");
+			if (specific_check == -1) {
+				printf("fake: target not found!!! \n");
+			}
+			else if (specific_check == -2)
+			{
+				printf("fake: execution error!! \n");
+			}
+			
 		}
-		else if (specific_check == -2)
-		{
-			printf("fake: execution error!! \n");
-		}
-		
+
 	}
+	
 	else if (processing(pointers_to_recipes, line, 0) == -1){
 		printf("fake: Fatal execution!!! \n");
 		printf("fake: Execution halt!! \n");
