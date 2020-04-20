@@ -5,7 +5,7 @@ run: clean fake
 	../fake 
 
 val: clean fake
-	valgrind ../fake
+	valgrind --track-origins=yes ../fake
 
 valmem: clean fake
 	valgrind --leak-check=full ../fake

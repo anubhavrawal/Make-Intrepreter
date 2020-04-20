@@ -2,7 +2,7 @@
 #include "fake.h"
 
 //Trims the leading annd ending white spaces
-//Got from the internet and modified it, I forgot to record the source, sorry!!!!
+//source/credit: https://stackoverflow.com/a/122721
 char *trimwhitespace(char *str)
 {
 	char *end;
@@ -116,6 +116,7 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
  * loop over commands by sharing
  * pipes.
  */
+//source/credit: https://gist.github.com/iomonad/a66f6e9cfb935dc12c0244c1e48db5c8
 int pipeline(char ***cmd)
 {
 	int fd[2];
@@ -333,7 +334,6 @@ int excutecmd(char *command){
 		//printf("THe hworld content is: \n %s", pipefd[0]);
 
 		//Split the command based on spaces
-		//i.e. "ls -la"
 		args[i] = strsep(&command," ");
         
 		while(command !=NULL){
@@ -399,7 +399,6 @@ int excutecmd(char *command){
 					//printf("Command tmp is: |%s| \n", command_tmp);
 
 					//Split the command_tmp based on spaces
-					//i.e "grep hworld"
 					i=0;
 					args2[i] = strtok(command_tmp," ");
 					while(args2[i]!=NULL){
@@ -602,11 +601,16 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 
 int main(int argc, char *argv[]){
 	char *filename;
-	if (argc >3){
-		printf("fake: invalid input format!! \n");
-	}
-	else if ((argc ==3) && (strcmp("-f", argv[1]) ==0) ){
-		filename = argv[2];
+	if ((argc ==3) && (strcmp("-f", argv[1]) ==0) ){
+		if( access( argv[2] , F_OK ) != -1 ) {
+			filename = argv[2];
+		}
+		else
+		{
+			printf("fake: Input file not found!!!");
+		}
+		
+		
 	}
 	else{
 		filename = "Fakefile1";
