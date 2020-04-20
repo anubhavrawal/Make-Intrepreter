@@ -333,25 +333,18 @@ int excutecmd(char *command){
 		
 		//printf("THe hworld content is: \n %s", pipefd[0]);
 
-		//Split the command based on spaces
+		//Split the command_tmp based on spaces or /"
 		args[i] = strsep(&command," ");
-        
 		while(command !=NULL){
-            //args[++i] = store;
-			//printf("Store is: {%s}\n", args[i]);
-			
             if (*command == '\"'){
                 command++;
                 args[++i] = strsep(&command,"\"");
             }
-            else
-            {
+            else{
                 store = strsep(&command," ");
 				if (*store != '\0'){
 					args[++i] = store;
 				}
-
-				
             }
 		}
 		args[++i] = NULL; // Add NULL as last argument for exec
@@ -398,13 +391,22 @@ int excutecmd(char *command){
 					
 					//printf("Command tmp is: |%s| \n", command_tmp);
 
-					//Split the command_tmp based on spaces
+					//Split the command_tmp based on spaces or /"
 					i=0;
-					args2[i] = strtok(command_tmp," ");
-					while(args2[i]!=NULL){
-						args2[++i] = strtok(NULL," ");
+					args2[i] = strsep(&command_tmp," ");
+					while(command_tmp !=NULL){
+						if (*command_tmp == '\"'){
+							command_tmp++;
+							args2[++i] = strsep(&command_tmp,"\"");
+						}
+						else{
+							store = strsep(&command_tmp," ");
+							if (*store != '\0'){
+								args2[++i] = store;
+							}
+						}
 					}
-					args2[i] = NULL; // Add NULL as last argument for exec
+					args2[++i] = NULL; // Add NULL as last argument for exec
 					
 					//Print the command being executed
 					//for (int k = 0; k <= i; ++k) 
