@@ -5,22 +5,22 @@
 //Got from the internet and modified it, I forgot to record the source, sorry!!!!
 char *trimwhitespace(char *str)
 {
-  char *end;
+	char *end;
 
-  // Trim leading space
-  while(isspace((unsigned char)*str)) str++;
+	// Trim leading space
+	while(isspace((unsigned char)*str)) str++;
 
-  if(*str == 0)  // All spaces?
-    return str;
+	if(*str == 0)  // All spaces?
+	return str;
 
-  // Trim trailing space
-  end = str + strlen(str) - 1;
-  while(end > str && isspace((unsigned char)*end)) end--;
+	// Trim trailing space
+	end = str + strlen(str) - 1;
+	while(end > str && isspace((unsigned char)*end)) end--;
 
-  // Write new null terminator character
-  end[1] = '\0';
+	// Write new null terminator character
+	end[1] = '\0';
 
-  return str;
+	return str;
 }
 
 //Parses and stores the Rule targets and dependencies
@@ -42,7 +42,7 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 		char *deps;
 
 		int count =0;
-		while (deps){
+		while (1){
 			deps = strsep(&buf, " ");
             //printf("deps: |%s| \n", deps);
 			if (deps == NULL){
@@ -112,10 +112,148 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
 
 }
 
+/*
+ * loop over commands by sharing
+ * pipes.
+ */
+int pipeline(char ***cmd)
+{
+	int fd[2];
+	pid_t pid, wpid;
+	int fdd = 0;				/* Backup */
+	int status = 0;
+
+	while (*cmd != NULL) {
+		pipe(fd);
+		if ((pid = fork()) == -1) {
+			perror("fork \n");
+			exit(1);
+		}
+		else if (pid == 0) {
+			dup2(fdd, 0);
+			if (*(cmd + 1) != NULL) {
+				dup2(fd[1], 1);
+			}
+			close(fd[0]);
+			execvp((*cmd)[0], *cmd);
+			exit(1);
+		}
+		else {	
+			/* Collect childs */
+			while ((wpid = wait(&status)) > 0){
+				if ( WIFEXITED(status)){
+					if(WEXITSTATUS(status) >0 ){
+						printf("Child failed \n");
+						return -1;
+					}
+				}
+			}
+
+			close(fd[1]);
+			fdd = fd[0];
+			cmd++;
+		}
+	}
+	return 0;
+}
+
+//Handler for multiple pipe case
+int multi_pipe_parser(char *command, int j){
+	//int j;
+	char *command_count = command;
+	for (j=0; command_count[j]; command_count[j]=='|' ? j++ : *command_count++);
+	j = j+2;
+
+	if (j == 2){
+		j = 1; 
+	} 
+
+	char ***cmd = malloc( j * sizeof(char **));
+
+	int k = 0; 
+	char *command_tmp;
+
+	//Split the command based on pipes
+	command_tmp = strsep(&command, "|");
+	
+
+    command_tmp = trimwhitespace(command_tmp);
+	command = trimwhitespace(command);
+
+    while (1){
+		char * arg[30];
+		int i = 0;
+        char *store;
+		
+		cmd[k] = malloc(sizeof(char *));
+		cmd[k][i] = strdup(strsep(&command_tmp," "));
+        
+		while(command_tmp !=NULL){
+			
+            if (*command_tmp == '\"'){
+                command_tmp++;
+				++i;
+				cmd[k] = realloc(cmd[k], (i+1) *sizeof(char *));
+				
+                cmd[k][i] = strdup(strsep(&command_tmp,"\""));
+            }
+            else
+            {
+                store = strsep(&command_tmp," ");
+				if (*store != '\0'){
+					++i;
+					cmd[k] = realloc(cmd[k], (i+1) *sizeof(char *));
+                	cmd[k][i] = strdup(store);
+				}
+
+				
+            }
+		}
+		cmd[k] = realloc(cmd[k], (i+2) *sizeof(char *));
+		cmd[k][++i] = NULL; // Add NULL as last argument for exec
+		
+        if (command == NULL){
+            break;
+        }
+
+		command_tmp = strsep(&command, "|");
+        command_tmp = trimwhitespace(command_tmp);
+        k++;
+	}
+	cmd[++k] = NULL;
+
+	int return_value;
+    return_value =  pipeline(cmd) ;
+    
+	for (int h=0; h<k;h++){
+        int m =0;
+		while(cmd[h][m] != NULL){
+            free(cmd[h][m]);
+            m++;
+        } 
+        free(cmd[h]);
+        
+    }
+	free(cmd);
+
+	return return_value;
+}
+
+
 //Executes the feeded command, is bascially a shell ;) , tried  my best to make it so.
 int excutecmd(char *command){
 	printf("%s \n", command);
-	char *args[10];
+
+	char *pipe_test_store = command;
+	int pipe_num_count;
+	for (pipe_num_count=0; pipe_test_store[pipe_num_count]; pipe_test_store[pipe_num_count]=='|' ? pipe_num_count++ : *pipe_test_store++);
+
+	if (pipe_num_count>1){
+		return multi_pipe_parser(command, pipe_num_count);
+	}
+
+
+	char *args[50];
 	int i=0;
 	char *store;
 
@@ -237,7 +375,7 @@ int excutecmd(char *command){
 		//waitpid(pid1, NULL, 0);
 		pid_t pid2 = fork();
 		
-		char *args2[10];
+		char *args2[50];
 		
 		//Child2
 		if (0 == pid2) {
@@ -398,7 +536,6 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 			return 0;
 		}
 	}
-
 
 	//Loop through all the dependencies
 	if (pointers_to_recipes[track]->dep_count > 0){
