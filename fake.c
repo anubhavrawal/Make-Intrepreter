@@ -237,7 +237,7 @@ int multi_pipe_parser(char *command, int j){
 
 //Executes the feeded command, is bascially a shell ;) , tried  my best to make it so.
 int excutecmd(char *command){
-	printf(" \n \n %s \n", command);
+	printf("%s \n", command);
 
 	//Lets see how many pipes we are about to deal with....
 	char *pipe_test_store = command; //temporary space to preserve command pointer
@@ -318,7 +318,6 @@ int excutecmd(char *command){
 
 			command = command_tmp;
 		}
-
 		
 		else if ( (pipe_check == 0) && STD_check == 1){
 			command_tmp = strsep(&command, ">");
@@ -333,10 +332,6 @@ int excutecmd(char *command){
 
 			command = command_tmp;
 		}
-		
-		
-		
-		//printf("THe hworld content is: \n %s", pipefd[0]);
 
 		//Split the command_tmp based on spaces or /"
 		args[i] = strsep(&command," ");
@@ -353,12 +348,6 @@ int excutecmd(char *command){
             }
 		}
 		args[++i] = NULL; // Add NULL as last argument for exec
-
-		//Print the command being executed
-		//printf("Child 1 detail: \n");
-		//for (int k = 0; k < i; ++k) 
-		//	printf("%d: %s\n",k, args[k]);
-		//printf("\n");
 		
 		//Execute the command
 		if ((execvp(args[0], args) < 0)) {
@@ -369,15 +358,14 @@ int excutecmd(char *command){
 
 	//Parent Process(tmp)
 	else {
-		//wait for child to end
-		//waitpid(pid1, NULL, 0);
-		//pid_t pid2;
-		
+		pid_t pid2;
+		//printf("The value of pipe check is: %d \n", pipe_check);
 		char *args2[50];
 		if (pipe_check == 1){
-			pid1 = fork();
+			pid2 = fork();
+			printf("I forked!!! \n");
 			//Child2
-			if (0 == pid1) {
+			if (0 == pid2) {
 				//printf("Child2: %s \n", command);
 				if ((pipe_check == 1) && (STD_check == 1)){
 					// close the write end of the pipe
@@ -393,8 +381,6 @@ int excutecmd(char *command){
 
 					command_tmp = trimwhitespace(command_tmp);
 					command = trimwhitespace(command);
-					
-					//printf("Command tmp is: |%s| \n", command_tmp);
 
 					//Split the command_tmp based on spaces or /"
 					i=0;
@@ -413,13 +399,6 @@ int excutecmd(char *command){
 					}
 					args2[++i] = NULL; // Add NULL as last argument for exec
 					
-					//Print the command being executed
-					//for (int k = 0; k <= i; ++k) 
-					//	printf("%d: |%s|\n",k, args2[k]);
-					//printf("\n");
-
-					
-					//printf("Command is: |%s| \n", command);
 					
 					// open a file named FILTER to redirect output into
 					int rfd = open(command, O_WRONLY|O_CREAT|O_TRUNC, 0644);
@@ -427,63 +406,60 @@ int excutecmd(char *command){
 					dup2(rfd, STDOUT_FILENO);
 					
 				}
-				//printf("Command123333 is: |%s| \n", command);
 				if ((execvp(args2[0], args2) < 0)) {
 					perror("execvp error");
 					exit(-1);
 				}
 			}
-		}
 		
-		//Final parent process
-		else{
-			if (pipe_check == 1){
+			//Final parent process for fork with pipe
+			else{
+
 				close(pipefd[0]);
 				close(pipefd[1]);
-			}
-
-			int status1;
-			//int status2;
-			waitpid(pid1, &status1, 0);
-			//printf("The pipe check value at last is: %d\n", pipe_check);
-			
-			//printf("Command in parent is %s!!! \n", command);
-
-			//Wait for second pipe only if there was a pipe initially
-			/*if (pipe_check == 1){
-				printf("I waited for second thread to finish!!! \n");
+				int status1;
+				int status2;
+				waitpid(pid1, &status1, 0);
 				waitpid(pid2, &status2, 0);
-			}*/
+				//Handel with the error occured in the child process
+				int out_check = 0;
 
-			//Handel with the error occured in the child process
-			int out_check = 0;
-			
-
-			if ( WIFEXITED(status1)){
-				if(WEXITSTATUS(status1) >0 ){
-					printf("Child 1 failed \n");
-					out_check++;
+				if ( WIFEXITED(status1)){
+					if(WEXITSTATUS(status1) >0 ){
+						printf("Child 1 failed \n");
+						out_check++;
+					}
 				}
-			}
-
-			/*
-			if (pipe_check == 1){
-				if(WIFEXITED(status2)){
-					if(WEXITSTATUS(status2)){
+				if ((WIFEXITED(status2) && pipe_check == 1)){
+					if((WEXITSTATUS(status2) && pipe_check == 1)){
 						printf("Child 2 failed \n");
 						out_check++;
 					}
 				}
-			}
-			*/
-		
-			if (out_check >0){
-				return -1;
-			}
+				if (out_check >0){
+					return -1;
+				}
 
+			}
 		}
 
-		return 0;
+		//Parent for for without pipe
+		else
+		{
+			int status;
+			//wait for child to end
+			waitpid(pid1, &status, 0);
+
+			if ( WIFEXITED(status)){
+				if(WEXITSTATUS(status) >0 ){
+					printf("Child 1 failed \n");
+					return -1;
+				}
+			}
+			return 0;
+		}
+		
+
 	}	
 	return 0;
 }
@@ -636,7 +612,7 @@ int main(int argc, char *argv[]){
 		
 	}
 	else{
-		filename = "Fakefile1";
+		filename = "Fakefile";
 	}
 	
 	
