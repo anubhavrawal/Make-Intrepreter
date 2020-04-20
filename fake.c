@@ -160,14 +160,8 @@ int pipeline(char ***cmd)
 
 //Handler for multiple pipe case
 int multi_pipe_parser(char *command, int j){
-	//int j;
 	char *command_count = command;
-	for (j=0; command_count[j]; command_count[j]=='|' ? j++ : *command_count++);
 	j = j+2;
-
-	if (j == 2){
-		j = 1; 
-	} 
 
 	char ***cmd = malloc( j * sizeof(char **));
 
@@ -245,15 +239,21 @@ int multi_pipe_parser(char *command, int j){
 int excutecmd(char *command){
 	printf("%s \n", command);
 
-	char *pipe_test_store = command;
-	int pipe_num_count;
+	//Lets see how many pipes we are about to deal with....
+	char *pipe_test_store = command; //temporary space to preserve command pointer
+	int pipe_num_count; //store the total number
 	for (pipe_num_count=0; pipe_test_store[pipe_num_count]; pipe_test_store[pipe_num_count]=='|' ? pipe_num_count++ : *pipe_test_store++);
 
+	//did we find more than 1 pipe???
 	if (pipe_num_count>1){
+		//Yes sargent!!!
+		//Oh boii, we have no work on this function anymore
+		//Direct the flow to the multi pipe hadling function and return whatever value they give us back
 		return multi_pipe_parser(command, pipe_num_count);
 	}
 
-
+	//No, sargent!!!
+	//Well, then private, lets see what we have in our hands.
 	char *args[50];
 	int i=0;
 	char *store;
