@@ -3,8 +3,7 @@
 
 //Trims the leading annd ending white spaces
 //source/credit: https://stackoverflow.com/a/122721
-char *trimwhitespace(char *str)
-{
+char *trimwhitespace(char *str){
 	char *end;
 
 	// Trim leading space
@@ -26,8 +25,6 @@ char *trimwhitespace(char *str)
 //Parses and stores the Rule targets and dependencies
 int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	char *rule_target;
-	
-	//pointers_to_recipes[line]->deps[0] = malloc(sizeof(char *));
 
 	if (strchr(buf, ':') == NULL){
 		return -1;
@@ -160,20 +157,29 @@ int pipeline(char ***cmd)
 //Handler for multiple pipe case
 int multi_pipe_parser(char *command, int j){
 	char *command_count = command;
+	
+	//Add 2 extra spaces on j for that is how many array elements we will need for executing the command
 	j = j+2;
 
+	//This will contain out command in a "array of arrays of string" format
+	//As per required by `execvp`
 	char ***cmd = malloc( j * sizeof(char **));
 
+	//is the index for array of array 
+	//example: [[1,2], [2,3], [3,4]], K keeps on track of [a,b]'s placement
 	int k = 0; 
+	
+	//Temporary location to preserve our command pointer
 	char *command_tmp;
 
 	//Split the command based on pipes
 	command_tmp = strsep(&command, "|");
 	
-
+	//Remove unecessay spaces at the beginning and the end of the command
     command_tmp = trimwhitespace(command_tmp);
 	command = trimwhitespace(command);
 
+	//Lets begin the split
     while (1){
 		char * arg[30];
 		int i = 0;
@@ -182,20 +188,29 @@ int multi_pipe_parser(char *command, int j){
 		cmd[k] = malloc(sizeof(char *));
 		cmd[k][i] = strdup(strsep(&command_tmp," "));
         
+		//Loop untill the end of command is reached
 		while(command_tmp !=NULL){
 			
+			//if a set of /"/" is found then 
             if (*command_tmp == '\"'){
-                command_tmp++;
-				++i;
+                command_tmp++; //take 1 step ahead
+				++i;//increment the index
 				cmd[k] = realloc(cmd[k], (i+1) *sizeof(char *));
-				
+				//separate by the next nearest /"
+				//store it within the arrays of string
                 cmd[k][i] = strdup(strsep(&command_tmp,"\""));
             }
+			//well, no such luck???
             else
             {
+				//Separate by space
+				//temporary store it into a variable
                 store = strsep(&command_tmp," ");
+				//was that just a blank value
 				if (*store != '\0'){
 					++i;
+					//No??
+					//Now make some extra space and then store it into the array of string
 					cmd[k] = realloc(cmd[k], (i+1) *sizeof(char *));
                 	cmd[k][i] = strdup(store);
 				}
@@ -203,22 +218,30 @@ int multi_pipe_parser(char *command, int j){
 				
             }
 		}
+		//Realloc more space for addding more [a,b]'s
 		cmd[k] = realloc(cmd[k], (i+2) *sizeof(char *));
 		cmd[k][++i] = NULL; // Add NULL as last argument for exec
 		
+		//well nothing more to parse??
         if (command == NULL){
-            break;
+            //Lets hop out
+			break;
         }
 
+		//Now lets look into what's into the another end of the pipe
+		// Example: a|b|c we we now want to look into b
 		command_tmp = strsep(&command, "|");
         command_tmp = trimwhitespace(command_tmp);
-        k++;
+        k++;//Increment the counter variable
+		//loop for the new command parse
 	}
-	cmd[++k] = NULL;
+	cmd[++k] = NULL;//add NULL so that we know thats the end
 
-	int return_value;
+	int return_value;//place to store the return value as we always want to free up our used space
+					//even if error occurs during execution
     return_value =  pipeline(cmd) ;
     
+	//Free up our used up memory
 	for (int h=0; h<k;h++){
         int m =0;
 		while(cmd[h][m] != NULL){
@@ -230,6 +253,7 @@ int multi_pipe_parser(char *command, int j){
     }
 	free(cmd);
 
+	//return the sucess or failed flag
 	return return_value;
 }
 
@@ -407,16 +431,22 @@ int excutecmd(char *command){
 		
 			//Final parent process for fork with pipe
 			else{
-
+				//close the pipe for parent as parent does not need it
 				close(pipefd[0]);
 				close(pipefd[1]);
+				
+				//Status flags
 				int status1;
 				int status2;
+
+				//wait for the processses to finish
 				waitpid(pid1, &status1, 0);
 				waitpid(pid2, &status2, 0);
+
 				//Handel with the error occured in the child process
 				int out_check = 0;
 
+				//Depending on what happened set the flag and let the user know which one failed
 				if ( WIFEXITED(status1)){
 					if(WEXITSTATUS(status1) >0 ){
 						printf("Child 1 failed \n");
@@ -589,8 +619,11 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 }
 
 int main(int argc, char *argv[]){
+	//The filename form where will read the reciepes
 	char *filename;
-	int file_change_check = 0;
+	int file_change_check = 0;//flag to check if we need to parse something else
+
+	//if -f is present within  the arguments then change the filename to what user wants
 	if ((argc ==3) && (strcmp("-f", argv[1]) ==0) ){
 		if( access( argv[2] , F_OK ) != -1 ) {
 			filename = argv[2];
@@ -603,6 +636,7 @@ int main(int argc, char *argv[]){
 		
 		
 	}
+	//Well if nothing always look for Fakefile
 	else{
 		filename = "Fakefile";
 	}
@@ -619,36 +653,50 @@ int main(int argc, char *argv[]){
 
 	int validation_check = 0;
     
-    //Pointers of Pointer for storing all the cards
-    recipe_t **pointers_to_recipes = malloc(sizeof(recipe_t*));
-
+	//if we cannot open or find the Fakefile...
     if (fake_reader == NULL) 
     { 
         printf("Could not open the Fakefile!!! \n"); 
-        return -1; 
+        return -1; //exit
     }
+
+	//Pointers of Pointer for storing all the cards
+    recipe_t **pointers_to_recipes = malloc(sizeof(recipe_t*));
     
+	//lets start parsing for recipes
     while( (condition == 1) && (fgets(reader, 1024, fake_reader)) ){
 
+		//If comment ignore
 		if (*reader == '#'){
             continue;
         }
+		
+		//temporary location to save the memory allocated reader pointer
 		buf = reader;
 
+		//Lets see what state we are in??
 		switch (state){
+			//Looking for commands??
 			case COMMANDS:
+				//well if it is just a new line then stop lokking for commands
 				if (*reader == '\n'){
 					line++;
-					state = RULE_START;
+					state = RULE_START; //look for Rule instead
 				}
 
+				//If it starts with a tab
 				else if (*reader == '\t'){
+					//is a proper Command flag
 					validation_check = 0;
+					//Parse the command using the function call
 					validation_check = cmds(pointers_to_recipes, buf, line, cmd_track);
 
+					//well did it set a error flag
 					if (validation_check == -1){
+						//if yes?
 						printf("Invalid format!!!! CMD state\n");
 						condition = 0;
+						//exit
 						break;
 					}
 					cmd_track++;
@@ -717,31 +765,30 @@ int main(int argc, char *argv[]){
 
 	int specific_check;
 
-	//Display only if eveything went well
+	//Process only if everything went well while parsing
 	if (condition){
-		//display(pointers_to_recipes, line);
-	}
+		//See if user mentions specific targets to execute
+		if((file_change_check == 0) && (argc>=2) ){
 
-	if((file_change_check == 0) && (argc>=2) ){
+			for (int arg_index = 1;arg_index< argc; arg_index++){
+				specific_check  = target_search(pointers_to_recipes, line, argv[arg_index]);
 
-		for (int arg_index = 1;arg_index< argc; arg_index++){
-			specific_check  = target_search(pointers_to_recipes, line, argv[arg_index]);
-
-			if (specific_check == -1) {
-				printf("fake: target not found!!! \n");
+				if (specific_check == -1) {
+					printf("fake: target not found!!! \n");
+				}
+				else if (specific_check == -2)
+				{
+					printf("fake: execution error!! \n");
+				}
+				
 			}
-			else if (specific_check == -2)
-			{
-				printf("fake: execution error!! \n");
-			}
-			
+
 		}
-
-	}
-	
-	else if (processing(pointers_to_recipes, line, 0) == -1){
-		printf("fake: Fatal execution!!! \n");
-		printf("fake: Execution halt!! \n");
+		//well no?? process the first target
+		else if (processing(pointers_to_recipes, line, 0) == -1){
+			printf("fake: Fatal execution!!! \n");
+			printf("fake: Execution halt!! \n");
+		}
 	}
 
 	//Freeing all the used memory
