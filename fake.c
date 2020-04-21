@@ -359,13 +359,12 @@ int excutecmd(char *command){
 	//Parent Process(tmp)
 	else {
 		pid_t pid2;
-		//printf("The value of pipe check is: %d \n", pipe_check);
 		char *args2[50];
 		if (pipe_check == 1){
 			pid2 = fork();
+			
 			//Child2
 			if (0 == pid2) {
-				//printf("Child2: %s \n", command);
 				if ((pipe_check == 1) && (STD_check == 1)){
 					// close the write end of the pipe
 					close(pipefd[1]);
@@ -442,7 +441,7 @@ int excutecmd(char *command){
 			}
 		}
 
-		//Parent for for without pipe
+		//Parent for fork without pipe
 		else
 		{
 			int status;
@@ -476,12 +475,11 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track);
 //Search if the given string is avialble as a target and processses it
 int target_search(recipe_t ** pointers_to_recipes, int line, char *input){
 	int curr_line;
-	//printf("input got: |%s|\n", input);
+
 	//Check if the "track"-indexed depencency is depended on anyother avilable targets
 	//The check always skips the fist elment on the target list
 	for (curr_line = 0; curr_line<=line; curr_line++){
 		//If the dependancy is on a target file within the fakefile
-		//printf("%d |%s| vs. |%s| \n",curr_line, input, pointers_to_recipes[curr_line]->target);
 
 		if (strcmp(input, pointers_to_recipes[curr_line]->target) ==0){
 			//Recurcevely execute that target first
@@ -628,7 +626,6 @@ int main(int argc, char *argv[]){
     
     //Pointers of Pointer for storing all the cards
     recipe_t **pointers_to_recipes = malloc(sizeof(recipe_t*));
-    //pointers_to_recipes[0] = malloc(sizeof(recipe_t));
 
     if (fake_reader == NULL) 
     { 
