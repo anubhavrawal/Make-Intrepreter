@@ -25,7 +25,4 @@ typedef struct recipe
 
 typedef enum {RULE_START, COMMANDS} parser;
 
-size_t parser_file(recipe_t ***, FILE *);
-void cleanup(recipe_t **, size_t);
-
 #endif

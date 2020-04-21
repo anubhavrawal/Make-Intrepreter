@@ -279,8 +279,6 @@ int excutecmd(char *command){
 		STD_check = 3;
 	}
 
-	//printf("The pipe check value at first is: %d\n", pipe_check);
-
 	if (pipe_check == 1){
 		pipe(pipefd);
 	}
@@ -294,8 +292,6 @@ int excutecmd(char *command){
 		//Print user feedback on what command is being executed
 
 		if ((pipe_check == 1) && (STD_check == 1)){
-			//char *command_tmp = strsep(&command, "|");
-			//command = command_tmp;//extracting the "ls -la" section
 			command = strsep(&command, "|");
 
 			// close the read end of the pipe
