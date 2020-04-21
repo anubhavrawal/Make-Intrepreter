@@ -44,7 +44,6 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 		int count =0;
 		while (1){
 			deps = strsep(&buf, " ");
-            //printf("deps: |%s| \n", deps);
 			if (deps == NULL){
 				break;
 			}
