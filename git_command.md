@@ -24,11 +24,11 @@ The following paths are ignored by one of your .gitignore files:
 <folder_name>
 Use -f if you really want to add them.
 ```
-**It's not a error message just warning** 
+**It's not a error message just a warning** 
 
 Remove these file if you wish or just ignore and continue if this does not bother you. 
 
-**Step 2.** Commit these changes with a message explaining the reason for the submitting the assignment this could be basic fix for resubmisssion details.
+**Step 2.** Commit these changes with a message explaining the reason for the submitting the assignment this could be basic fix for resubmission details.
 
 ` $git commit -am "Version 0.1" -am "Reason for the commit" `
 
@@ -36,12 +36,13 @@ Remove these file if you wish or just ignore and continue if this does not bothe
 
 ` $git push `
 
+> Note always go for `git pull` before staging changes when collaborating with multiple people on the same repo.
 
 ## For saving user credentials
 
-Tired of entering your username and password each time you say push? Save your credentials so that git remember who you are. Lets use the SSH encription for saving and accessing your repository.
+Tired of entering your username and password each time you push your changes? Lets use the SSH encryption for saving and accessing your repository.
 
-Lets begin for generating your customized SSH encription key
+Lets begin for generating your customized SSH encryption key
 
 `ssh-keygen -t rsa -C "johndoe@example.com" `
 
@@ -61,7 +62,7 @@ Moving back to your terminal, lets test the connection with
 
 `ssh -T git@github.com`
 
-the above command will process and later ask for your passphrase is you had setup one int he begining. Enter the passphase and the execution should look like bellow:
+the above command will process, type `yes` when prompted and then it will ask for your **passphrase if you had setup one when it was prompted last time**. Enter the **passphrase** and the execution should look like bellow:
 
 ```
 $ ssh -T git@github.com
@@ -93,22 +94,24 @@ To github.com:wmucs3240/<repo-name>.git
    c9398d6..acd1536  master -> master
 ```
 
-> This execution is as execpted and works as expected.
+> This execution is as expected and works as expected.
 
 ## Saving user credentials 2
 
 SSH too complicated for you??
 
+Save your credentials locally, so that git remember who you are.
+
 Before you say push enter the following command so that git locally store your username and password.
 
 `$git config --global credential.helper store`
 
-## For removing user credentials
-
-`git config --global --unset credential.helper`
-
 
 ## Other helpful commands
+
+### For removing user credentials
+
+`git config --global --unset credential.helper`
 
 ### Discard all changes since last commit
 
