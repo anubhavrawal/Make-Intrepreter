@@ -113,7 +113,7 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
  * pipes.
  */
 //source/credit: https://gist.github.com/iomonad/a66f6e9cfb935dc12c0244c1e48db5c8
-int pipeline(char ***cmd)
+int shell_executer(char ***cmd)
 {
 	int fd[2];
 	pid_t pid, wpid;
@@ -127,19 +127,26 @@ int pipeline(char ***cmd)
 			exit(1);
 		}
 		else if (pid == 0) {
-			
 			dup2(fdd, 0);
+
+			//if there is somethin at the index 1 then that means we have pipes present within the command
 			if (*(cmd + 1) != NULL) {
 				dup2(fd[1], 1); // 1 -> STDOUT_FILENO
 			}
 			close(fd[0]);
 			
+			//coutner for tracting the '>' within the array
 			int test_n = 0;
+			
+			//Our output filename
 			char *outname = calloc(1,20);
 
 			while((*cmd)[test_n] != NULL){
 				if (strcmp( (*cmd)[test_n], ">" ) == 0){
+					//Null terminator for exec
 					(*cmd)[test_n] = NULL;
+					
+					//Our filename
 					strcpy( outname ,(*cmd)[test_n + 1] );
 
 					// open a file named FILTER to redirect output into
@@ -151,7 +158,10 @@ int pipeline(char ***cmd)
 				}
 
 				else if (strcmp( (*cmd)[test_n], "<" ) == 0){
+					//Null terminator for exec
 					(*cmd)[test_n] = NULL;
+					
+					//Our filename
 					strcpy( outname ,(*cmd)[test_n + 1] );
 
 					int rfd = open(outname, O_RDONLY);
@@ -160,24 +170,8 @@ int pipeline(char ***cmd)
 
 					break;
 				}
-				
-
 				test_n++;
-			}
-
-			/*
-			if (*outname != '\0'){
-				printf("The output file is: %s \n", outname);
-			}
-			
-
-			test_n = 0;
-			while((*cmd)[test_n] != NULL){
-				printf("%s ", (*cmd)[test_n] );
-				test_n++;
-			}
-			*/
-			
+			}			
 			free(outname);
 		
 			execvp((*cmd)[0], *cmd);
@@ -204,7 +198,7 @@ int pipeline(char ***cmd)
 }
 
 //Handler for multiple pipe case
-int multi_pipe_parser(char *command, int pipe_num_count){
+int exec_prep_parser(char *command, int pipe_num_count){
 	char *command_count = command;
 	
 	//Add 2 extra spaces on j for that is how many array elements we will need for executing the command
@@ -224,6 +218,7 @@ int multi_pipe_parser(char *command, int pipe_num_count){
 	//Split the command based on pipes
 	command_tmp = strsep(&command, "|");
 	
+	//For the cases when pipes are present
 	if (command != NULL){
 		//Remove unecessay spaces at the beginning and the end of the command
 		command_tmp = trimwhitespace(command_tmp);
@@ -291,7 +286,7 @@ int multi_pipe_parser(char *command, int pipe_num_count){
 
 	int return_value;//place to store the return value as we always want to free up our used space
 					//even if error occurs during execution
-    return_value =  pipeline(cmd) ;
+    return_value =  shell_executer(cmd) ;
     
 	//Free up our used up memory
 	for (int h=0; h<k;h++){
@@ -319,8 +314,7 @@ int excutecmd(char *command){
 	int pipe_num_count; //store the total number
 	for (pipe_num_count=0; pipe_test_store[pipe_num_count]; pipe_test_store[pipe_num_count]=='|' ? pipe_num_count++ : *pipe_test_store++);
 
-	return multi_pipe_parser(command, pipe_num_count);
-	//return 0;
+	return exec_prep_parser(command, pipe_num_count);
 }
 
 //Returns the modified time for the "path" file
