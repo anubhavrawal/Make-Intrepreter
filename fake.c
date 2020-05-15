@@ -29,7 +29,6 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	if (strchr(buf, ':') == NULL){
 		return -1;
 	}
-	
 	rule_target = strsep(&buf, ":");
 
 	if (strcmp(rule_target,buf)){
@@ -49,19 +48,16 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 				continue;
 			}
 			pointers_to_recipes[line]->deps = realloc(pointers_to_recipes[line]->deps, (count+1) *sizeof(char *));
-
 			pointers_to_recipes[line]->deps[count] = strdup(deps);
 			
 			count ++;
 		}
 		pointers_to_recipes[line]->dep_count = count;
-
 	}
-	else
-	{
+
+	else{
 		return -1;
 	}
-	
 	
 	return 1;
 }
@@ -113,8 +109,7 @@ int  cmds(recipe_t ** pointers_to_recipes, char *buf, int line, int count){
  * pipes.
  */
 //source/credit: https://gist.github.com/iomonad/a66f6e9cfb935dc12c0244c1e48db5c8
-int shell_executer(char ***cmd)
-{
+int shell_executer(char ***cmd){
 	int fd[2];
 	pid_t pid, wpid;
 	int fdd = 0;				/* Backup */
@@ -127,12 +122,15 @@ int shell_executer(char ***cmd)
 			exit(1);
 		}
 		else if (pid == 0) {
-			dup2(fdd, 0);
+			// make the read end the process's standard input for the backup
+			dup2(fdd, STDIN_FILENO);
 
 			//if there is somethin at the index 1 then that means we have pipes present within the command
 			if (*(cmd + 1) != NULL) {
-				dup2(fd[1], 1); // 1 -> STDOUT_FILENO
+				dup2(fd[1], STDOUT_FILENO ); // 1 -> STDOUT_FILENO
 			}
+
+			// close the read end of the pipe as child will not need it
 			close(fd[0]);
 			
 			//coutner for tracting the '>' within the array
@@ -179,7 +177,10 @@ int shell_executer(char ***cmd)
 		}
 
 		else {	
-			/* Collect childs */
+			/*	Wait a child to finish and check it's status
+				if the the child fails then 
+				return the error flag while also stopping the execution 
+			*/
 			while ((wpid = wait(&status)) > 0){
 				if ( WIFEXITED(status)){
 					if(WEXITSTATUS(status) >0 ){
@@ -188,9 +189,15 @@ int shell_executer(char ***cmd)
 					}
 				}
 			}
-			
+
+			// close the write end of the pipe
 			close(fd[1]);
+
+			// set the read end to the new backup 
 			fdd = fd[0];
+
+			//Go to the rest of piped command 
+			//will be NULL if there are no pipes
 			cmd++;
 		}
 	}
@@ -225,7 +232,6 @@ int exec_prep_parser(char *command, int pipe_num_count){
 		command = trimwhitespace(command);
 	}
 	
-
 	//Lets begin the split
     while (1){
 		char * arg[30];
@@ -303,7 +309,6 @@ int exec_prep_parser(char *command, int pipe_num_count){
 	//return the sucess or failed flag
 	return return_value;
 }
-
 
 //Executes the feeded command, is bascially a shell ;) , tried  my best to make it so.
 int excutecmd(char *command){
@@ -463,15 +468,12 @@ int main(int argc, char *argv[]){
 		{
 			printf("fake: Input file not found!!!");
 		}
-		
-		
 	}
+
 	//Well if nothing always look for Fakefile
 	else{
 		filename = "Fakefile";
 	}
-	
-	
 
     FILE *fake_reader = fopen(filename,"r");
     char *reader = calloc(1,1024);//Allocating memeory for file line reader
@@ -516,16 +518,15 @@ int main(int argc, char *argv[]){
 
 				//If it starts with a tab
 				else if (*reader == '\t'){
-					//is a proper Command flag
-					validation_check = 0;
-					//Parse the command using the function call
-					validation_check = cmds(pointers_to_recipes, buf, line, cmd_track);
+					//then it is a proper Command flag
 
-					//well did it set a error flag
-					if (validation_check == -1){
+					//Parse the command using the function call
+					//Also, did it set an error flag??
+					if (cmds(pointers_to_recipes, buf, line, cmd_track) == -1){
 						//if yes?
-						printf("Invalid format!!!! CMD state\n");
+						printf("Invalid COMMAND format!!!!\n");
 						condition = 0;
+						
 						//exit
 						break;
 					}
@@ -558,6 +559,7 @@ int main(int argc, char *argv[]){
 				tmp[len_buf-1] = '\0';
 				//-----------------------------------------
 
+				// A variable is needed to make sure that the "tmp" variable is always freed before the exiting the process
 				validation_check = 0;	
 				validation_check = rule(pointers_to_recipes, tmp, line);
 				
@@ -566,13 +568,12 @@ int main(int argc, char *argv[]){
 				//if -1 falgged by check then,
 				if (validation_check == -1){
 					line++;
-					printf("Invalid format rule state!!!! \n");
+					printf("Invalid RULE format!!!! \n");
 					condition = 0; //breaking the while loop
 					exit(-1);
 					break;
 				}
 				
-
 				state = COMMANDS;
 				cmd_track = 0;
 				pointers_to_recipes[line]->commands = calloc(1,sizeof(char *));
