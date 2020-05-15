@@ -122,19 +122,68 @@ int pipeline(char ***cmd)
 
 	while (*cmd != NULL) {
 		pipe(fd);
-		if ((pid = fork()) == -1) {
+		if ( (pid = fork()) == -1) { //
 			perror("fork \n");
 			exit(1);
 		}
 		else if (pid == 0) {
+			
 			dup2(fdd, 0);
 			if (*(cmd + 1) != NULL) {
-				dup2(fd[1], 1);
+				dup2(fd[1], 1); // 1 -> STDOUT_FILENO
 			}
 			close(fd[0]);
+			
+			int test_n = 0;
+			char *outname = calloc(1,20);
+
+			while((*cmd)[test_n] != NULL){
+				if (strcmp( (*cmd)[test_n], ">" ) == 0){
+					(*cmd)[test_n] = NULL;
+					strcpy( outname ,(*cmd)[test_n + 1] );
+
+					// open a file named FILTER to redirect output into
+					int rfd = open(outname, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+					// make the opened file the process's standard output
+					dup2(rfd, STDOUT_FILENO);
+
+					break;
+				}
+
+				else if (strcmp( (*cmd)[test_n], "<" ) == 0){
+					(*cmd)[test_n] = NULL;
+					strcpy( outname ,(*cmd)[test_n + 1] );
+
+					int rfd = open(outname, O_RDONLY);
+					// make the opened file the process's standard output
+					dup2(rfd, STDIN_FILENO);
+
+					break;
+				}
+				
+
+				test_n++;
+			}
+
+			/*
+			if (*outname != '\0'){
+				printf("The output file is: %s \n", outname);
+			}
+			
+
+			test_n = 0;
+			while((*cmd)[test_n] != NULL){
+				printf("%s ", (*cmd)[test_n] );
+				test_n++;
+			}
+			*/
+			
+			free(outname);
+		
 			execvp((*cmd)[0], *cmd);
 			exit(1);
 		}
+
 		else {	
 			/* Collect childs */
 			while ((wpid = wait(&status)) > 0){
@@ -145,7 +194,7 @@ int pipeline(char ***cmd)
 					}
 				}
 			}
-
+			
 			close(fd[1]);
 			fdd = fd[0];
 			cmd++;
@@ -155,15 +204,15 @@ int pipeline(char ***cmd)
 }
 
 //Handler for multiple pipe case
-int multi_pipe_parser(char *command, int j){
+int multi_pipe_parser(char *command, int pipe_num_count){
 	char *command_count = command;
 	
 	//Add 2 extra spaces on j for that is how many array elements we will need for executing the command
-	j = j+2;
+	pipe_num_count = pipe_num_count+2;
 
 	//This will contain out command in a "array of arrays of string" format
 	//As per required by `execvp`
-	char ***cmd = malloc( j * sizeof(char **));
+	char ***cmd = malloc( pipe_num_count * sizeof(char **));
 
 	//is the index for array of array 
 	//example: [[1,2], [2,3], [3,4]], K keeps on track of [a,b]'s placement
@@ -175,9 +224,12 @@ int multi_pipe_parser(char *command, int j){
 	//Split the command based on pipes
 	command_tmp = strsep(&command, "|");
 	
-	//Remove unecessay spaces at the beginning and the end of the command
-    command_tmp = trimwhitespace(command_tmp);
-	command = trimwhitespace(command);
+	if (command != NULL){
+		//Remove unecessay spaces at the beginning and the end of the command
+		command_tmp = trimwhitespace(command_tmp);
+		command = trimwhitespace(command);
+	}
+	
 
 	//Lets begin the split
     while (1){
@@ -267,224 +319,8 @@ int excutecmd(char *command){
 	int pipe_num_count; //store the total number
 	for (pipe_num_count=0; pipe_test_store[pipe_num_count]; pipe_test_store[pipe_num_count]=='|' ? pipe_num_count++ : *pipe_test_store++);
 
-	//did we find more than 1 pipe???
-	if (pipe_num_count>1){
-		//Yes sargent!!!
-		//Oh boii, we have no work on this function anymore
-		//Direct the flow to the multi pipe hadling function and return whatever value they give us back
-		return multi_pipe_parser(command, pipe_num_count);
-	}
-
-	//No, sargent!!!
-	//Well, then private, lets see what we have in our hands.
-	char *args[50];
-	int i=0;
-	char *store;
-
-	int pipefd[2];
-	int pipe_check = 0;
-	int STD_check  = 0;
-	char *command_tmp;
-
-	//Incase of piping
-	if (strchr(command, '|') != NULL){
-		pipe_check = 1;
-	}
-	
-	if (strchr(command, '>') != NULL){
-		STD_check = 1;
-	}
-	
-	else if (strchr(command, '<') != NULL ){
-		STD_check = 2;
-	}
-
-	else if ((strchr(command, '<')!= NULL) && (strchr(command, '>')!= NULL) ){
-		STD_check = 3;
-	}
-
-	if (pipe_check == 1){
-		pipe(pipefd);
-	}
-
-	//Forking for 2 processes
-	pid_t pid1 = fork();
-
-
-	//Child process
-	if (0 == pid1) {
-		//Print user feedback on what command is being executed
-
-		if ((pipe_check == 1) && (STD_check == 1)){
-			command = strsep(&command, "|");
-
-			// close the read end of the pipe
-			close(pipefd[0]);
-			// make the write end the process's standard output
-			dup2(pipefd[1],STDOUT_FILENO);
-
-		}
-
-		if ( (pipe_check == 0) && STD_check == 2){
-			command_tmp = strsep(&command, "<");
-			
-			command_tmp = trimwhitespace(command_tmp);
-			command = trimwhitespace(command);
-
-			int rfd = open(command, O_RDONLY);
-			// make the opened file the process's standard output
-			dup2(rfd, STDIN_FILENO);
-
-			command = command_tmp;
-		}
-		
-		else if ( (pipe_check == 0) && STD_check == 1){
-			command_tmp = strsep(&command, ">");
-			
-			command_tmp = trimwhitespace(command_tmp);
-			command = trimwhitespace(command);
-
-			// open a file named FILTER to redirect output into
-			int rfd = open(command, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-			// make the opened file the process's standard output
-			dup2(rfd, STDOUT_FILENO);
-
-			command = command_tmp;
-		}
-
-		//Split the command_tmp based on spaces or /"
-		args[i] = strsep(&command," ");
-		while(command !=NULL){
-            if (*command == '\"'){
-                command++;
-                args[++i] = strsep(&command,"\"");
-            }
-            else{
-                store = strsep(&command," ");
-				if (*store != '\0'){
-					args[++i] = store;
-				}
-            }
-		}
-		args[++i] = NULL; // Add NULL as last argument for exec
-		
-		//Execute the command
-		if ((execvp(args[0], args) < 0)) {
-			perror("execvp error");
-			exit(-1);
-		}
-	}
-
-	//Parent Process(tmp)
-	else {
-		pid_t pid2;
-		char *args2[50];
-		if (pipe_check == 1){
-			pid2 = fork();
-			
-			//Child2
-			if (0 == pid2) {
-				if ((pipe_check == 1) && (STD_check == 1)){
-					// close the write end of the pipe
-					close(pipefd[1]);
-					// make the read end the process's standard input
-					dup2(pipefd[0], STDIN_FILENO);
-
-					//only keeep the filename in command
-					command_tmp = strsep(&command, ">");
-					
-					//Only keep the second portion of command after '|'
-					strsep(&command_tmp, "|");
-
-					command_tmp = trimwhitespace(command_tmp);
-					command = trimwhitespace(command);
-
-					//Split the command_tmp based on spaces or /"
-					i=0;
-					args2[i] = strsep(&command_tmp," ");
-					while(command_tmp !=NULL){
-						if (*command_tmp == '\"'){
-							command_tmp++;
-							args2[++i] = strsep(&command_tmp,"\"");
-						}
-						else{
-							store = strsep(&command_tmp," ");
-							if (*store != '\0'){
-								args2[++i] = store;
-							}
-						}
-					}
-					args2[++i] = NULL; // Add NULL as last argument for exec
-					
-					
-					// open a file named FILTER to redirect output into
-					int rfd = open(command, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-					// make the opened file the process's standard output
-					dup2(rfd, STDOUT_FILENO);
-					
-				}
-				if ((execvp(args2[0], args2) < 0)) {
-					perror("execvp error");
-					exit(-1);
-				}
-			}
-		
-			//Final parent process for fork with pipe
-			else{
-				//close the pipe for parent as parent does not need it
-				close(pipefd[0]);
-				close(pipefd[1]);
-				
-				//Status flags
-				int status1;
-				int status2;
-
-				//wait for the processses to finish
-				waitpid(pid1, &status1, 0);
-				waitpid(pid2, &status2, 0);
-
-				//Handel with the error occured in the child process
-				int out_check = 0;
-
-				//Depending on what happened set the flag and let the user know which one failed
-				if ( WIFEXITED(status1)){
-					if(WEXITSTATUS(status1) >0 ){
-						printf("Child 1 failed \n");
-						out_check++;
-					}
-				}
-				if ((WIFEXITED(status2) && pipe_check == 1)){
-					if((WEXITSTATUS(status2) && pipe_check == 1)){
-						printf("Child 2 failed \n");
-						out_check++;
-					}
-				}
-				if (out_check >0){
-					return -1;
-				}
-
-			}
-		}
-
-		//Parent for fork without pipe
-		else
-		{
-			int status;
-			//wait for child to end
-			waitpid(pid1, &status, 0);
-
-			if ( WIFEXITED(status)){
-				if(WEXITSTATUS(status) >0 ){
-					printf("Child 1 failed \n");
-					return -1;
-				}
-			}
-			return 0;
-		}
-		
-
-	}	
-	return 0;
+	return multi_pipe_parser(command, pipe_num_count);
+	//return 0;
 }
 
 //Returns the modified time for the "path" file
