@@ -26,12 +26,16 @@ char *trimwhitespace(char *str){
 int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	char *rule_target;
 
+	//If the rule does not have ':' in it then return the error flag
 	if (strchr(buf, ':') == NULL){
 		return -1;
 	}
-	rule_target = strsep(&buf, ":");
+	rule_target = strsep(&buf, ":"); //if it does than seprate them
 
+	//Check if the user only provides with ':' without any instruction or has a circular dependancy....
 	if (strcmp(rule_target,buf)){
+		//.....If not then lets parse more details
+
 		pointers_to_recipes[line]->target = strdup(rule_target);
 
 		buf = trimwhitespace(buf);
@@ -56,9 +60,11 @@ int rule(recipe_t ** pointers_to_recipes, char *buf, int line){
 	}
 
 	else{
+		//.....If it does then return the error flag
 		return -1;
 	}
-	
+
+	//Finally if we here then everything went well flag is returned
 	return 1;
 }
 
@@ -267,8 +273,7 @@ int exec_prep_parser(char *command, int pipe_num_count){
 					cmd[k] = realloc(cmd[k], (i+1) *sizeof(char *));
                 	cmd[k][i] = strdup(store);
 				}
-
-				
+		
             }
 		}
 		//Realloc more space for addding more [a,b]'s
@@ -429,7 +434,6 @@ int processing(recipe_t ** pointers_to_recipes, int line, int track){
 				printf("Error dependency file {%s} cannot be found from target: {%s}. Also the number of dependecies is: %d!! \n",pointers_to_recipes[track]->deps[index], pointers_to_recipes[track]->target, pointers_to_recipes[track]->dep_count);
 				return -1;
 			}
-
 		}
 
 		//Remember that we took a record for if dependancy is newer than target
@@ -459,13 +463,12 @@ int main(int argc, char *argv[]){
 	int file_change_check = 0;//flag to check if we need to parse something else
 
 	//if -f is present within  the arguments then change the filename to what user wants
-	if ((argc ==3) && (strcmp("-f", argv[1]) ==0) ){
+	if ((argc >= 3) && (strcmp("-f", argv[1]) ==0) ){
 		if( access( argv[2] , F_OK ) != -1 ) {
 			filename = argv[2];
 			file_change_check = 1;
 		}
-		else
-		{
+		else{
 			printf("fake: Input file not found!!!");
 		}
 	}
@@ -480,14 +483,13 @@ int main(int argc, char *argv[]){
     char *buf; // pointer to move within the line
     int line = 0;
 	int cmd_track;
-	parser state = RULE_START;
+	parser state = RULE_START;// Declration for State Machine
 	int condition = 1;
 
 	int validation_check = 0;
     
 	//if we cannot open or find the Fakefile...
-    if (fake_reader == NULL) 
-    { 
+    if (fake_reader == NULL) { 
         printf("Could not open the Fakefile!!! \n"); 
         return -1; //exit
     }
@@ -508,8 +510,10 @@ int main(int argc, char *argv[]){
 
 		//Lets see what state we are in??
 		switch (state){
+
 			//Looking for commands??
 			case COMMANDS:
+
 				//well if it is just a new line then stop lokking for commands
 				if (*reader == '\n'){
 					line++;
@@ -524,11 +528,9 @@ int main(int argc, char *argv[]){
 					//Also, did it set an error flag??
 					if (cmds(pointers_to_recipes, buf, line, cmd_track) == -1){
 						//if yes?
-						printf("Invalid COMMAND format!!!!\n");
+						printf("fake: Invalid COMMAND format!!!!\n");
 						condition = 0;
-						
-						//exit
-						break;
+						break; //exit
 					}
 					cmd_track++;
 					pointers_to_recipes[line]->cmd_count = cmd_track;
@@ -540,9 +542,9 @@ int main(int argc, char *argv[]){
 					exit(-1);
 					break;
 				}
-
 				break;
 			
+			//Well are we not looking for a rule??
 			case RULE_START:
 				if ((*reader == '\t') || (*reader =='\n') || (reader == NULL)){
 					break;
@@ -568,7 +570,7 @@ int main(int argc, char *argv[]){
 				//if -1 falgged by check then,
 				if (validation_check == -1){
 					line++;
-					printf("Invalid RULE format!!!! \n");
+					printf("fake: Invalid RULE format!!!! \n");
 					condition = 0; //breaking the while loop
 					exit(-1);
 					break;
@@ -599,16 +601,22 @@ int main(int argc, char *argv[]){
 	//Process only if everything went well while parsing
 	if (condition){
 		//See if user mentions specific targets to execute
-		if((file_change_check == 0) && (argc>=2) ){
+		if(argc>=2){
+			int arg_index;
+			if (file_change_check == 0){
+				arg_index = 1;
+			}
+			else{
+				arg_index = 3;
+			}
 
-			for (int arg_index = 1;arg_index< argc; arg_index++){
+			for ( ;arg_index < argc; arg_index++){
 				specific_check  = target_search(pointers_to_recipes, line, argv[arg_index]);
 
 				if (specific_check == -1) {
 					printf("fake: target not found!!! \n");
 				}
-				else if (specific_check == -2)
-				{
+				else if (specific_check == -2){
 					printf("fake: execution error!! \n");
 				}
 				
